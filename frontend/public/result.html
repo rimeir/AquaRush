@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수강신청 결과 | Aqua Rush</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Virtual Clock */
+        .virtual-clock {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.75rem 1.5rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .clock-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-right: 0.5rem;
+        }
+
+        .clock-time {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 3rem auto;
+            padding: 0 20px;
+            flex: 1;
+        }
+
+        /* Result Card */
+        .result-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 3rem;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        /* Success Style */
+        .result-card.success .result-icon {
+            color: #28a745;
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            animation: successPulse 0.6s ease-out;
+        }
+
+        .result-card.success .result-title {
+            color: #28a745;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        /* Failure Style */
+        .result-card.failure .result-icon {
+            color: #dc3545;
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            animation: failureShake 0.5s ease-out;
+        }
+
+        .result-card.failure .result-title {
+            color: #dc3545;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .result-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        /* Enrollment Details */
+        .enrollment-details {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: left;
+        }
+
+        .detail-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            border-bottom: 2px solid #1e90ff;
+            padding-bottom: 0.5rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .detail-value.highlight {
+            color: #1e90ff;
+        }
+
+        /* Processing Time */
+        .processing-time {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe5a0 100%);
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid #ffc107;
+        }
+
+        .processing-time-label {
+            font-size: 0.9rem;
+            color: #856404;
+            font-weight: 600;
+        }
+
+        .processing-time-value {
+            font-size: 1.5rem;
+            color: #856404;
+            font-weight: bold;
+            margin-top: 0.3rem;
+        }
+
+        /* Failure Reason */
+        .failure-reason {
+            background: linear-gradient(135deg, #ffe5e5 0%, #ffcccc 100%);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-left: 5px solid #dc3545;
+        }
+
+        .failure-reason-title {
+            font-weight: bold;
+            color: #721c24;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .failure-reason-text {
+            color: #721c24;
+            line-height: 1.6;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2.5rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(30, 144, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1e90ff;
+            border: 2px solid #1e90ff;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+            transform: translateY(-3px);
+        }
+
+        /* Footer */
+        .footer {
+            background: #2d3436;
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: auto;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Animations */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes successPulse {
+            0% {
+                transform: scale(0);
+            }
+            50% {
+                transform: scale(1.2);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        @keyframes failureShake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            25% {
+                transform: translateX(-10px);
+            }
+            75% {
+                transform: translateX(10px);
+            }
+        }
+
+        /* Confetti Animation (성공 시) */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #1e90ff;
+            position: absolute;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        @keyframes confetti-fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .result-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .result-icon {
+                font-size: 4rem !important;
+            }
+
+            .result-title {
+                font-size: 1.5rem !important;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <!-- Virtual Clock -->
+        <div class="virtual-clock">
+            <span class="clock-label">🕐 현재 시간:</span>
+            <span class="clock-time" id="virtual-clock">08:59:30</span>
+        </div>
+        
+        <div class="header-content">
+            <div class="logo">🏊 Aqua Rush</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Success Result Card -->
+        <div class="result-card success" id="success-card" style="display: none;">
+            <div class="result-icon">🎉</div>
+            <h1 class="result-title">수강신청 성공!</h1>
+            <p class="result-subtitle">
+                축하합니다! 수강신청이 정상적으로 완료되었습니다.<br>
+                수강증은 마이페이지에서 확인하실 수 있습니다.
+            </p>
+
+            <div class="processing-time">
+                <div class="processing-time-label">⚡ 처리 시간</div>
+                <div class="processing-time-value" id="processing-time">1.23초</div>
+            </div>
+
+            <div class="enrollment-details">
+                <h3 class="detail-title">📋 신청 내역</h3>
+                <div class="detail-item">
+                    <span class="detail-label">센터</span>
+                    <span class="detail-value highlight" id="success-center">센터 A</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">강좌명</span>
+                    <span class="detail-value" id="success-course">성인 자유수영</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">시간</span>
+                    <span class="detail-value" id="success-time">월,수,금 14:00-15:00</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">대상</span>
+                    <span class="detail-value" id="success-target">성인</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">결제 금액</span>
+                    <span class="detail-value highlight" id="success-price">80,000원</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">신청 일시</span>
+                    <span class="detail-value" id="success-timestamp">2025-01-15 09:00:05</span>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <a href="index.html" class="btn btn-primary">홈으로</a>
+                <a href="registration.html" class="btn btn-secondary">추가 신청</a>
+            </div>
+        </div>
+
+        <!-- Failure Result Card -->
+        <div class="result-card failure" id="failure-card" style="display: none;">
+            <div class="result-icon">😢</div>
+            <h1 class="result-title">수강신청 실패</h1>
+            <p class="result-subtitle">
+                죄송합니다. 수강신청 처리 중 문제가 발생했습니다.
+            </p>
+
+            <div class="failure-reason">
+                <div class="failure-reason-title">❌ 실패 사유</div>
+                <div class="failure-reason-text" id="failure-reason">
+                    수강 인원이 마감되었습니다. (정원 20명 초과)
+                </div>
+            </div>
+
+            <div class="processing-time">
+                <div class="processing-time-label">⏱️ 처리 시간</div>
+                <div class="processing-time-value" id="failure-processing-time">2.45초</div>
+            </div>
+
+            <div class="enrollment-details">
+                <h3 class="detail-title">📋 신청 시도 내역</h3>
+                <div class="detail-item">
+                    <span class="detail-label">센터</span>
+                    <span class="detail-value" id="failure-center">센터 A</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">강좌명</span>
+                    <span class="detail-value" id="failure-course">성인 자유수영</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">시간</span>
+                    <span class="detail-value" id="failure-time">월,수,금 14:00-15:00</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">시도 일시</span>
+                    <span class="detail-value" id="failure-timestamp">2025-01-15 09:00:05</span>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <a href="registration.html" class="btn btn-primary">다시 신청하기</a>
+                <a href="index.html" class="btn btn-secondary">홈으로</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <h3>🏊 Aqua Rush</h3>
+            <p>수켓팅 마스터</p>
+        </div>
+    </footer>
+
+    <script>
+        // 🕐 가상 시계 관리
+        let virtualTime;
+        
+        function initVirtualClock() {
+            const savedTime = sessionStorage.getItem('virtualTime');
+            const savedStartReal = sessionStorage.getItem('virtualStartReal');
+            
+            if (savedTime && savedStartReal) {
+                const elapsedReal = Date.now() - parseInt(savedStartReal);
+                virtualTime = new Date(parseInt(savedTime) + elapsedReal);
+            } else {
+                virtualTime = new Date('2025-01-15T08:59:30');
+                sessionStorage.setItem('virtualTime', virtualTime.getTime().toString());
+                sessionStorage.setItem('virtualStartReal', Date.now().toString());
+            }
+            
+            updateVirtualClock();
+            setInterval(updateVirtualClock, 1000);
+        }
+        
+        function updateVirtualClock() {
+            virtualTime = new Date(virtualTime.getTime() + 1000);
+            const timeString = formatDateTime(virtualTime);
+            document.getElementById('virtual-clock').textContent = timeString;
+        }
+        
+        function formatDateTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        // 페이지 로드 시 실행
+        window.addEventListener('load', function() {
+            initVirtualClock();
+            displayResult();
+        });
+
+        // 결과 표시
+        function displayResult() {
+            // URL 파라미터에서 결과 정보 가져오기
+            const urlParams = new URLSearchParams(window.location.search);
+            const status = urlParams.get('status') || 'success'; // success or failure
+            
+            // 임시 데이터 (실제로는 서버에서 받아옴)
+            const enrollmentData = {
+                center: urlParams.get('center') || '센터 A',
+                course: urlParams.get('course') || '성인 자유수영',
+                time: urlParams.get('time') || '월,수,금 14:00-15:00',
+                target: urlParams.get('target') || '성인',
+                price: urlParams.get('price') || '80,000',
+                processingTime: (Math.random() * 2 + 0.5).toFixed(2), // 0.5~2.5초
+                timestamp: getCurrentTimestamp(),
+                failureReason: urlParams.get('reason') || '수강 인원이 마감되었습니다.'
+            };
+
+            if (status === 'success') {
+                showSuccessResult(enrollmentData);
+            } else {
+                showFailureResult(enrollmentData);
+            }
+        }
+
+        // 성공 결과 표시
+        function showSuccessResult(data) {
+            document.getElementById('success-card').style.display = 'block';
+            document.getElementById('failure-card').style.display = 'none';
+            
+            document.getElementById('success-center').textContent = data.center;
+            document.getElementById('success-course').textContent = data.course;
+            document.getElementById('success-time').textContent = data.time;
+            document.getElementById('success-target').textContent = data.target;
+            document.getElementById('success-price').textContent = data.price + '원';
+            document.getElementById('success-timestamp').textContent = data.timestamp;
+            document.getElementById('processing-time').textContent = data.processingTime + '초';
+            
+            // 축하 confetti 효과
+            createConfetti();
+        }
+
+        // 실패 결과 표시
+        function showFailureResult(data) {
+            document.getElementById('success-card').style.display = 'none';
+            document.getElementById('failure-card').style.display = 'block';
+            
+            document.getElementById('failure-center').textContent = data.center;
+            document.getElementById('failure-course').textContent = data.course;
+            document.getElementById('failure-time').textContent = data.time;
+            document.getElementById('failure-timestamp').textContent = data.timestamp;
+            document.getElementById('failure-processing-time').textContent = data.processingTime + '초';
+            document.getElementById('failure-reason').textContent = data.failureReason;
+        }
+
+        // Confetti 생성 (성공 시)
+        function createConfetti() {
+            const colors = ['#1e90ff', '#00bfff', '#87ceeb', '#4682b4', '#5f9ea0'];
+            const confettiCount = 50;
+
+            for (let i = 0; i < confettiCount; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * window.innerWidth + 'px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                    document.body.appendChild(confetti);
+
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 30);
+            }
+        }
+
+        // 현재 타임스탬프 반환
+        function getCurrentTimestamp() {
+            const now = virtualTime || new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // 테스트용: URL에 파라미터 없으면 랜덤 결과 표시
+        if (!new URLSearchParams(window.location.search).get('status')) {
+            // 50% 확률로 성공/실패
+            const isSuccess = Math.random() > 0.5;
+            const url = new URL(window.location);
+            url.searchParams.set('status', isSuccess ? 'success' : 'failure');
+            url.searchParams.set('center', '센터 A');
+            url.searchParams.set('course', '성인 자유수영');
+            url.searchParams.set('time', '월,수,금 14:00-15:00');
+            url.searchParams.set('target', '성인');
+            url.searchParams.set('price', '80000');
+            
+            if (!isSuccess) {
+                const reasons = [
+                    '수강 인원이 마감되었습니다. (정원 20명 초과)',
+                    '동일 시간대에 이미 신청한 강좌가 있습니다.',
+                    '결제 처리 중 오류가 발생했습니다.',
+                    'API 요청 한도를 초과했습니다. (Rate Limit)',
+                    '서버 연결이 불안정합니다. 잠시 후 다시 시도해주세요.'
+                ];
+                url.searchParams.set('reason', reasons[Math.floor(Math.random() * reasons.length)]);
+            }
+            
+            window.history.replaceState({}, '', url);
+        }
+    </script>
+</body>
+</html>

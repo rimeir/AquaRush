@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장바구니 | Aqua Rush</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Virtual Clock */
+        .virtual-clock {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.75rem 1.5rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .clock-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-right: 0.5rem;
+        }
+
+        .clock-time {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .cart-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .back-btn {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background-color: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .login-btn {
+            background-color: #ffb647;
+            color: #333;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 20px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #1e90ff;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Cart Section */
+        .cart-section {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .cart-items {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #1e90ff;
+            padding-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-count {
+            font-size: 1rem;
+            color: #1e90ff;
+            font-weight: 600;
+        }
+
+        /* Cart Item Card */
+        .cart-item {
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .cart-item:hover {
+            border-color: #1e90ff;
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.1);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .item-center {
+            color: #1e90ff;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .item-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .item-price {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #1e90ff;
+            text-align: right;
+        }
+
+        .remove-btn {
+            background-color: #ff4757;
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+
+        .remove-btn:hover {
+            background-color: #ff3838;
+            transform: translateY(-1px);
+        }
+
+        /* Empty Cart */
+        .empty-cart {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #999;
+        }
+
+        .empty-cart-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .empty-cart-text {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .continue-shopping {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            padding: 0.75rem 2rem;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .continue-shopping:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.4);
+        }
+
+        /* Summary Section */
+        .cart-summary {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .summary-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .total-row {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #1e90ff;
+        }
+
+        .total-label {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .total-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1e90ff;
+        }
+
+        .discount-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-size: 0.9rem;
+            color: #1565c0;
+            text-align: center;
+        }
+
+        .checkout-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+
+        .checkout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .checkout-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .clear-cart-btn {
+            width: 100%;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .clear-cart-btn:hover {
+            background-color: #5a6268;
+        }
+
+        /* Notice Box */
+        .notice-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe5a0 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border-left: 5px solid #ffc107;
+        }
+
+        .notice-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .notice-text {
+            color: #856404;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2d3436;
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Toast 알림 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: none;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .cart-section {
+                grid-template-columns: 1fr;
+            }
+
+            .cart-summary {
+                position: static;
+            }
+
+            .item-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <!-- Virtual Clock -->
+        <div class="virtual-clock">
+            <span class="clock-label">🕐 현재 시간:</span>
+            <span class="clock-time" id="virtual-clock">08:59:30</span>
+        </div>
+        
+        <div class="header-content">
+            <div class="logo" onclick="goBack()">🏊 Aqua Rush</div>
+            <div class="cart-wrapper">
+                <a href="#" class="back-btn" onclick="goBack()">← 수강신청으로</a>
+                <a href="#login" class="login-btn">로그인</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">
+                🛒 장바구니
+            </h1>
+            <p class="page-subtitle">선택하신 강좌를 확인하고 결제를 진행하세요</p>
+        </div>
+
+        <!-- Notice -->
+        <div class="notice-box">
+            <div class="notice-title">💡 안내사항</div>
+            <div class="notice-text">
+                • 장바구니에 담긴 강좌는 30분간 유지됩니다. 시간 초과 시 자동으로 삭제됩니다.<br>
+                • 동일 시간대 강좌는 동시 신청이 불가능합니다.<br>
+                • 결제 완료 후 취소는 개강 7일 전까지만 가능합니다.
+            </div>
+        </div>
+
+        <!-- Cart Section -->
+        <div class="cart-section">
+            <!-- Cart Items -->
+            <div class="cart-items">
+                <h2 class="section-title">
+                    강좌 목록
+                    <span class="item-count" id="item-count">0개</span>
+                </h2>
+                
+                <div id="cart-items-container">
+                    <!-- 장바구니 아이템이 여기에 동적으로 추가됩니다 -->
+                </div>
+
+                <!-- Empty Cart Message -->
+                <div id="empty-cart" class="empty-cart" style="display: none;">
+                    <div class="empty-cart-icon">🛒</div>
+                    <div class="empty-cart-text">장바구니가 비어있습니다</div>
+                    <a href="#" class="continue-shopping" onclick="goBack()">강좌 둘러보기</a>
+                </div>
+            </div>
+
+            <!-- Cart Summary -->
+            <div class="cart-summary">
+                <h2 class="section-title">결제 정보</h2>
+                
+                <div class="summary-row">
+                    <span class="summary-label">강좌 수</span>
+                    <span class="summary-value" id="summary-count">0개</span>
+                </div>
+                
+                <div class="summary-row">
+                    <span class="summary-label">총 수강료</span>
+                    <span class="summary-value" id="summary-subtotal">0원</span>
+                </div>
+
+                <div class="summary-row total-row">
+                    <span class="total-label">최종 결제금액</span>
+                    <span class="total-value" id="summary-total">0원</span>
+                </div>
+
+                <button class="checkout-btn" id="checkout-btn" onclick="goToCheckout()" disabled>
+                    결제하기
+                </button>
+                
+                <button class="clear-cart-btn" onclick="clearCart()">
+                    전체 삭제
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <h3>🏊 Aqua Rush</h3>
+            <p>수켓팅 마스터</p>
+        </div>
+    </footer>
+
+    <!-- Toast 알림 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 🔥 샘플 데이터 (실제로는 이전 페이지에서 전달받거나 서버에서 가져옴)
+        let cartItems = [
+            {
+                id: 1,
+                center: "센터 A",
+                category: "수영",
+                name: "성인 자유수영",
+                time: "월,수,금 14:00-15:00",
+                target: "성인",
+                price: 80000
+            },
+            {
+                id: 3,
+                center: "센터 C",
+                category: "요가",
+                name: "하타요가 중급반",
+                time: "월,수,금 10:00-11:00",
+                target: "성인",
+                price: 90000
+            },
+            {
+                id: 4,
+                center: "센터 D",
+                category: "키즈",
+                name: "어린이 수영교실",
+                time: "토 11:00-12:00",
+                target: "어린이",
+                price: 70000
+            }
+        ];
+
+        // 🕐 가상 시계 관리
+        let virtualTime;
+        
+        function initVirtualClock() {
+            const savedTime = sessionStorage.getItem('virtualTime');
+            const savedStartReal = sessionStorage.getItem('virtualStartReal');
+            
+            if (savedTime && savedStartReal) {
+                const elapsedReal = Date.now() - parseInt(savedStartReal);
+                virtualTime = new Date(parseInt(savedTime) + elapsedReal);
+            } else {
+                virtualTime = new Date('2025-01-15T08:59:30');
+                sessionStorage.setItem('virtualTime', virtualTime.getTime().toString());
+                sessionStorage.setItem('virtualStartReal', Date.now().toString());
+            }
+            
+            updateVirtualClock();
+            setInterval(updateVirtualClock, 1000);
+        }
+        
+        function updateVirtualClock() {
+            virtualTime = new Date(virtualTime.getTime() + 1000);
+            const timeString = formatDateTime(virtualTime);
+            document.getElementById('virtual-clock').textContent = timeString;
+        }
+        
+        function formatDateTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        // 페이지 로드 시 장바구니 렌더링
+        window.addEventListener('load', function() {
+            initVirtualClock();
+            renderCart();
+            updateSummary();
+        });
+
+        // 숫자를 통화 형식으로 변환
+        function formatCurrency(num) {
+            return num.toLocaleString('ko-KR') + '원';
+        }
+
+        // 장바구니 렌더링
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const emptyCart = document.getElementById('empty-cart');
+            const itemCount = document.getElementById('item-count');
+
+            if (cartItems.length === 0) {
+                container.style.display = 'none';
+                emptyCart.style.display = 'block';
+                itemCount.textContent = '0개';
+                return;
+            }
+
+            container.style.display = 'block';
+            emptyCart.style.display = 'none';
+            itemCount.textContent = cartItems.length + '개';
+
+            container.innerHTML = cartItems.map(item => `
+                <div class="cart-item">
+                    <div class="item-header">
+                        <div class="item-info">
+                            <div class="item-center">${item.center}</div>
+                            <div class="item-name">${item.name}</div>
+                        </div>
+                        <div class="item-price">${formatCurrency(item.price)}</div>
+                    </div>
+                    <div class="item-details">
+                        <div class="detail-item">📁 ${item.category}</div>
+                        <div class="detail-item">🎯 ${item.target}</div>
+                        <div class="detail-item" style="grid-column: 1 / -1;">🕐 ${item.time}</div>
+                    </div>
+                    <button class="remove-btn" onclick="removeItem(${item.id})">
+                        삭제
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // 요약 정보 업데이트
+        function updateSummary() {
+            const count = cartItems.length;
+            const subtotal = cartItems.reduce((sum, item) => sum + item.price, 0);
+            const total = subtotal;
+
+            document.getElementById('summary-count').textContent = count + '개';
+            document.getElementById('summary-subtotal').textContent = formatCurrency(subtotal);
+            document.getElementById('summary-total').textContent = formatCurrency(total);
+
+            // 결제 버튼 활성화/비활성화
+            const checkoutBtn = document.getElementById('checkout-btn');
+            checkoutBtn.disabled = count === 0;
+        }
+
+        // 아이템 삭제
+        function removeItem(id) {
+            if (confirm('이 강좌를 장바구니에서 삭제하시겠습니까?')) {
+                cartItems = cartItems.filter(item => item.id !== id);
+                renderCart();
+                updateSummary();
+                showToast('강좌가 삭제되었습니다.', 'info');
+            }
+        }
+
+        // 장바구니 전체 삭제
+        function clearCart() {
+            if (cartItems.length === 0) {
+                showToast('장바구니가 이미 비어있습니다.', 'warning');
+                return;
+            }
+
+            if (confirm('장바구니를 전체 삭제하시겠습니까?')) {
+                cartItems = [];
+                renderCart();
+                updateSummary();
+                showToast('장바구니가 비워졌습니다.', 'info');
+            }
+        }
+
+        // 결제 페이지로 이동
+        function goToCheckout() {
+            if (cartItems.length === 0) {
+                showToast('장바구니에 강좌를 담아주세요.', 'warning');
+                return;
+            }
+
+            // 실제로는 checkout.html로 이동하면서 데이터 전달
+            alert(`결제 페이지로 이동합니다.\n\n선택 강좌: ${cartItems.length}개\n결제 금액: ${document.getElementById('summary-total').textContent}\n\n실제 환경에서는 checkout.html로 이동합니다.`);
+            console.log('결제 데이터:', cartItems);
+        }
+
+        // 이전 페이지로 이동
+        function goBack() {
+            alert('수강신청 페이지로 돌아갑니다.\n\n실제 환경에서는 registration.html로 이동합니다.');
+        }
+
+        // Toast 알림 표시
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icons = {
+                success: '✅',
+                warning: '⚠️',
+                info: 'ℹ️',
+                error: '❌'
+            };
+            const colors = {
+                success: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                warning: 'linear-gradient(135deg, #ffa502 0%, #ff6348 100%)',
+                info: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
+                error: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+            };
+            
+            toast.textContent = `${icons[type]} ${message}`;
+            toast.style.background = colors[type];
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
