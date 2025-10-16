@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수강 신청 | Aqua Rush</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Virtual Clock */
+        .virtual-clock {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.75rem 1.5rem;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .clock-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-right: 0.5rem;
+        }
+
+        .clock-time {
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .cart-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .cart-btn {
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .cart-btn:hover {
+            background-color: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .cart-badge {
+            background-color: #ff4757;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .login-btn {
+            background-color: #ffb647;
+            color: #333;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 20px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            color: #1e90ff;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        /* Schedule Table */
+        .schedule-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .schedule-title {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid #1e90ff;
+            padding-bottom: 0.5rem;
+        }
+
+        .schedule-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .schedule-table th,
+        .schedule-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .schedule-table th {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .schedule-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        /* Search Form */
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .form-group select,
+        .form-group input {
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #1e90ff;
+        }
+
+        .weekdays {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+
+        .weekday-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .weekday-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #1e90ff;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-reset {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.4);
+        }
+
+        /* Results Table */
+        .results-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .results-table th {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .results-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .status-available {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-full {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .price {
+            font-weight: bold;
+            color: #1e90ff;
+        }
+
+        .add-cart-btn {
+            background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .add-cart-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 10px rgba(30, 144, 255, 0.4);
+        }
+
+        .add-cart-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        /* Notice Box */
+        .notice-box {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            border-left: 5px solid #e17055;
+        }
+
+        .notice-title {
+            font-weight: bold;
+            color: #2d3436;
+            margin-bottom: 0.5rem;
+        }
+
+        .notice-text {
+            color: #2d3436;
+            line-height: 1.6;
+        }
+
+        /* Footer */
+        .footer {
+            background: #2d3436;
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: none;
+            animation: slideIn 0.3s ease-out;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .results-table {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <!-- Virtual Clock -->
+        <div class="virtual-clock">
+            <span class="clock-label">🕐 현재 시간:</span>
+            <span class="clock-time" id="virtual-clock">08:59:30</span>
+        </div>
+        
+        <div class="header-content">
+            <div class="logo">🏊 Aqua Rush</div>
+            <div class="cart-wrapper">
+                <a href="#cart" class="cart-btn" onclick="goToCart(event)">
+                    🛒 장바구니
+                    <span class="cart-badge" id="cart-count">0</span>
+                </a>
+                <a href="#login" class="login-btn">로그인</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">🎯 수강신청</h1>
+            <p class="page-subtitle">원하시는 강좌를 편리하게 온라인으로 신청하세요</p>
+        </div>
+
+        <!-- Notice -->
+        <div class="notice-box">
+            <div class="notice-title">📢 중요 공지사항</div>
+            <div class="notice-text">
+                • 로그인 상태는 30분간 유지되며, 해당 시간 내 이용이 없는 경우 자동 로그아웃됩니다.<br>
+                • 간편자격조회를 하지 않은 경우 관외 요금이 적용됩니다.<br>
+                • 강사 수급 및 정원 미달 시 폐강될 수 있습니다.<br>
+                • 신규등록일이 휴장일인 경우 접수 일정이 변경될 수 있습니다.
+            </div>
+        </div>
+
+        <!-- Schedule Section -->
+        <div class="schedule-section">
+            <h2 class="schedule-title">📅 접수일정 안내</h2>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>센터명</th>
+                        <th>재등록</th>
+                        <th>신규등록</th>
+                        <th>수강 신청 시간</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>센터 A</td>
+                        <td>매달 15일 00시 ~ 20일</td>
+                        <td>매달 23일 09시 ~ 말일</td>
+                        <td>오전 9시</td>
+                    </tr>
+                    <tr>
+                        <td>센터 B</td>
+                        <td>매달 16일 00시 ~ 21일</td>
+                        <td>매달 24일 10시 ~ 말일</td>
+                        <td>오전 7시</td>
+                    </tr>
+                    <tr>
+                        <td>센터 C</td>
+                        <td>매달 16일 00시 ~ 21일</td>
+                        <td>매달 24일 07시 ~ 말일</td>
+                        <td>오전 9시</td>
+                    </tr>
+                    <tr>
+                        <td>센터 D</td>
+                        <td>매달 15일 05시 ~ 20일</td>
+                        <td>매달 25일 09시 ~ 말일</td>
+                        <td>오전 7시</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Search Section -->
+        <div class="search-section">
+            <h2 class="schedule-title">🔍 강좌 검색</h2>
+            <div class="search-form">
+                <div class="form-group">
+                    <label for="center">센터 선택</label>
+                    <select id="center">
+                        <option value="">선택하세요</option>
+                        <option value="centerA">센터 A</option>
+                        <option value="centerB">센터 B</option>
+                        <option value="centerC">센터 C</option>
+                        <option value="centerD">센터 D</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">대분류</label>
+                    <select id="category">
+                        <option value="">선택하세요</option>
+                        <option value="swimming">수영</option>
+                        <option value="fitness">헬스/피트니스</option>
+                        <option value="yoga">요가/필라테스</option>
+                        <option value="dance">댄스</option>
+                        <option value="martial">무술/태권도</option>
+                        <option value="kids">키즈 프로그램</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="subcategory">소분류</label>
+                    <select id="subcategory">
+                        <option value="">전체</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="target">교육대상</label>
+                    <select id="target">
+                        <option value="">전체</option>
+                        <option value="adult">성인</option>
+                        <option value="teen">청소년</option>
+                        <option value="kids">어린이</option>
+                        <option value="senior">시니어</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="course-name">강좌명</label>
+                    <input type="text" id="course-name" placeholder="강좌명을 입력하세요">
+                </div>
+
+                <div class="form-group">
+                    <label>요일 선택</label>
+                    <div class="weekdays">
+                        <div class="weekday-item">
+                            <input type="checkbox" id="mon" value="mon">
+                            <label for="mon">월</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="tue" value="tue">
+                            <label for="tue">화</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="wed" value="wed">
+                            <label for="wed">수</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="thu" value="thu">
+                            <label for="thu">목</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="fri" value="fri">
+                            <label for="fri">금</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="sat" value="sat">
+                            <label for="sat">토</label>
+                        </div>
+                        <div class="weekday-item">
+                            <input type="checkbox" id="sun" value="sun">
+                            <label for="sun">일</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-reset" onclick="resetForm()">초기화</button>
+                <button class="btn btn-search" onclick="searchCourses()">검색</button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section">
+            <h2 class="schedule-title">📋 검색 결과</h2>
+            <table class="results-table">
+                <thead>
+                    <tr>
+                        <th>센터</th>
+                        <th>분류</th>
+                        <th>강좌명</th>
+                        <th>시간</th>
+                        <th>대상</th>
+                        <th>등록인원/정원</th>
+                        <th>수강료</th>
+                        <th>신청</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                    <tr>
+                        <td>센터 A</td>
+                        <td>수영</td>
+                        <td>성인 자유수영</td>
+                        <td>월,수,금 14:00-15:00</td>
+                        <td>성인</td>
+                        <td class="status-available">15/20</td>
+                        <td class="price">80,000원</td>
+                        <td><button class="add-cart-btn" onclick='addToCart({id:1, center:"센터 A", category:"수영", name:"성인 자유수영", time:"월,수,금 14:00-15:00", target:"성인", price:80000})'>장바구니</button></td>
+                    </tr>
+                    <tr>
+                        <td>센터 B</td>
+                        <td>헬스</td>
+                        <td>크로스핏 초급반</td>
+                        <td>화,목 19:00-20:00</td>
+                        <td>성인</td>
+                        <td class="status-full">12/12</td>
+                        <td class="price">120,000원</td>
+                        <td><button class="add-cart-btn" disabled>마감</button></td>
+                    </tr>
+                    <tr>
+                        <td>센터 C</td>
+                        <td>요가</td>
+                        <td>하타요가 중급반</td>
+                        <td>월,수,금 10:00-11:00</td>
+                        <td>성인</td>
+                        <td class="status-available">8/15</td>
+                        <td class="price">90,000원</td>
+                        <td><button class="add-cart-btn" onclick='addToCart({id:3, center:"센터 C", category:"요가", name:"하타요가 중급반", time:"월,수,금 10:00-11:00", target:"성인", price:90000})'>장바구니</button></td>
+                    </tr>
+                    <tr>
+                        <td>센터 D</td>
+                        <td>키즈</td>
+                        <td>어린이 수영교실</td>
+                        <td>토 11:00-12:00</td>
+                        <td>어린이</td>
+                        <td class="status-available">6/10</td>
+                        <td class="price">70,000원</td>
+                        <td><button class="add-cart-btn" onclick='addToCart({id:4, center:"센터 D", category:"키즈", name:"어린이 수영교실", time:"토 11:00-12:00", target:"어린이", price:70000})'>장바구니</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <h3>🏊 Aqua Rush</h3>
+            <p>수켓팅 마스터</p>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        🎉 장바구니에 추가되었습니다!
+    </div>
+
+    <script>
+        let cartItems = [];
+
+        // 🕐 가상 시계 관리
+        let virtualTime;
+        
+        // 페이지 로드 시 가상 시간 초기화 또는 불러오기
+        function initVirtualClock() {
+            const savedTime = sessionStorage.getItem('virtualTime');
+            const savedStartReal = sessionStorage.getItem('virtualStartReal');
+            
+            if (savedTime && savedStartReal) {
+                // 기존 세션이 있으면 경과 시간 계산
+                const elapsedReal = Date.now() - parseInt(savedStartReal);
+                virtualTime = new Date(parseInt(savedTime) + elapsedReal);
+            } else {
+                // 새 세션: 2025-01-15 08:59:30 으로 시작
+                virtualTime = new Date('2025-01-15T08:59:30');
+                sessionStorage.setItem('virtualTime', virtualTime.getTime().toString());
+                sessionStorage.setItem('virtualStartReal', Date.now().toString());
+            }
+            
+            updateVirtualClock();
+            setInterval(updateVirtualClock, 1000);
+        }
+        
+        function updateVirtualClock() {
+            virtualTime = new Date(virtualTime.getTime() + 1000);
+            const timeString = formatDateTime(virtualTime);
+            document.getElementById('virtual-clock').textContent = timeString;
+        }
+        
+        function formatDateTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+
+        window.addEventListener('load', function() {
+            initVirtualClock();
+            updateCartCount();
+        });
+
+        function updateCartCount() {
+            const cartCount = document.getElementById('cart-count');
+            cartCount.textContent = cartItems.length;
+        }
+
+        function addToCart(course) {
+            const exists = cartItems.find(item => item.id === course.id);
+            if (exists) {
+                showToast('이미 장바구니에 있는 강좌입니다.', 'warning');
+                return;
+            }
+
+            cartItems.push(course);
+            updateCartCount();
+            showToast('장바구니에 추가되었습니다!', 'success');
+            
+            console.log('현재 장바구니:', cartItems);
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = type === 'success' ? '🎉 ' + message : '⚠️ ' + message;
+            toast.style.background = type === 'success' 
+                ? 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'
+                : 'linear-gradient(135deg, #ffa502 0%, #ff6348 100%)';
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function goToCart(e) {
+            e.preventDefault();
+            alert(`장바구니로 이동합니다. (현재 ${cartItems.length}개 강좌)\n\n실제 환경에서는 cart.html로 이동합니다.`);
+            console.log('장바구니 데이터:', cartItems);
+        }
+
+        function updateSubcategory() {
+            const category = document.getElementById('category').value;
+            const subcategory = document.getElementById('subcategory');
+            
+            subcategory.innerHTML = '<option value="">전체</option>';
+            
+            const subcategories = {
+                swimming: ['자유수영', '영법교정', '아쿠아로빅', '수중운동'],
+                fitness: ['헬스', '크로스핏', '웨이트 트레이닝', 'PT'],
+                yoga: ['하타요가', '빈야사요가', '필라테스', '요가플로우'],
+                dance: ['현대무용', '재즈댄스', 'K-POP댄스', '발레'],
+                martial: ['태권도', '검도', '유도', '합기도'],
+                kids: ['키즈수영', '키즈태권도', '키즈댄스', '키즈체조']
+            };
+            
+            if (category && subcategories[category]) {
+                subcategories[category].forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    subcategory.appendChild(option);
+                });
+            }
+        }
+
+        document.getElementById('category').addEventListener('change', updateSubcategory);
+
+        function resetForm() {
+            document.getElementById('center').value = '';
+            document.getElementById('category').value = '';
+            document.getElementById('subcategory').innerHTML = '<option value="">전체</option>';
+            document.getElementById('target').value = '';
+            document.getElementById('course-name').value = '';
+            
+            const checkboxes = document.querySelectorAll('.weekdays input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+        }
+
+        function searchCourses() {
+            const center = document.getElementById('center').value;
+            const category = document.getElementById('category').value;
+            const target = document.getElementById('target').value;
+            const courseName = document.getElementById('course-name').value;
+            
+            if (!center) {
+                alert('센터를 선택해주세요.');
+                return;
+            }
+            
+            if (!category) {
+                alert('대분류를 선택해주세요.');
+                return;
+            }
+            
+            console.log('검색 조건:', { center, category, target, courseName });
+            alert('검색을 실행합니다. (실제 환경에서는 서버 검색 결과가 표시됩니다)');
+        }
+    </script>
+</body>
+</html>
