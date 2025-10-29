@@ -1,0 +1,19 @@
+# 공통 IDE 설정
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 환경 설정
+.env
+.env.local
+
+# 로그
+*.log
+
+# 기타
+node_modules/
