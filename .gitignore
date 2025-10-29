@@ -1,0 +1,31 @@
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+### 예외: 일부 팀에서는 .idea 일부만 공유 (선택사항) ###
+# .idea/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/runConfigurations/
+
+### Gradle ###
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### OS  ###
+.DS_Store
+Thumbs.db
+
+### 환경 설정 ###
+.env
+.env.local
+
+### 로그 ###
+*.log
+
+### 기타 ###
+node_modules/

@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: backend
+  cache:
+    cache-names: estimates
+    redis:
+      enable-statistics: true
+  profiles:
+    active: dev # 로컬 테스트 시, dev로 변경
+
+# Swagger 설정
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    com.aquarush.ticketing: DEBUG
+    org.hibernate.SQL: DEBUG
