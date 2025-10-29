@@ -18,13 +18,14 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+.idea_modules/
 
 ### NetBeans ###
 /nbproject/private/
@@ -35,3 +36,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Environment ###
+src/main/resources/application-dev.yml
+src/main/resources/application-local.yml
+.env
+
+### OS ###
+.DS_Store
+Thumbs.db
