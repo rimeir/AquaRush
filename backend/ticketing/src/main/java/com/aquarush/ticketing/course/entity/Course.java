@@ -1,5 +1,6 @@
 package com.aquarush.ticketing.course.entity;
 
+import com.aquarush.ticketing.category.entity.Category;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -27,8 +28,16 @@ public class Course {
     @Column(nullable = false, length = 50)
     private String centerName;
 
-    @Column(nullable = false, length = 30)
-    private String category;
+//    @Column(nullable = false, length = 30)
+//    private String category;
+
+    /**
+     * 카테고리 연관관계
+     * 하나의 강좌는 하나의 카테고리에 속함
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @Column(length = 30)
     private String subcategory;
