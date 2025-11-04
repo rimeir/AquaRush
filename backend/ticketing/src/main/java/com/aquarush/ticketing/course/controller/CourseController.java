@@ -1,48 +1,78 @@
 package com.aquarush.ticketing.course.controller;
 
-import com.aquarush.ticketing.global.dto.ApiResponse;
 import com.aquarush.ticketing.course.dto.CourseDetailResponse;
+import com.aquarush.ticketing.course.dto.CourseSearchRequest;
+import com.aquarush.ticketing.course.dto.CourseSearchResponse;
 import com.aquarush.ticketing.course.service.CourseService;
+import com.aquarush.ticketing.global.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/courses")
 @RequiredArgsConstructor
-@Tag(name = "Courses", description = "강좌 API")
+@Tag(name = "Course", description = "강좌 API")
 public class CourseController {
 
     private final CourseService courseService;
 
     /**
      * 강좌 상세 조회
-     * GET /api/v1/courses/{courseId}
      */
     @Operation(
-            summary = "센터 목록 조회",
-            description = "센터 전체 목록을 조회합니다."
+            summary = "강좌 상세 조회",
+            description = "강좌 ID로 강좌 상세 정보를 조회합니다."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "센터 목록 조회 성공")
     @GetMapping("/{courseId}")
-    public ResponseEntity<ApiResponse<Map<String, CourseDetailResponse>>> getCourse(
+    public ResponseEntity<ApiResponse<CourseDetailResponse>> getCourseDetail(
             @PathVariable Long courseId
     ) {
-        log.info("GET /courses/{} - 강좌 상세 조회 요청", courseId);
+        log.info("GET /api/v1/courses/{} - 강좌 상세 조회", courseId);
 
-        CourseDetailResponse course = courseService.findCourseById(courseId);
+        CourseDetailResponse course = courseService.getCourseDetail(courseId);
+
+        return ResponseEntity.ok(ApiResponse.success(course));
+    }
+
+    /**
+     * 강좌 검색 (기본)
+     */
+    @Operation(
+            summary = "강좌 검색",
+            description = "다양한 조건으로 강좌를 검색합니다. 목록 조회에 최적화된 응답을 반환합니다."
+    )
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Map<String, List<CourseSearchResponse>>>> searchCourses(
+            @RequestParam(required = false) Long centerId,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String courseName,
+            @RequestParam(required = false) String instructor
+    ) {
+        log.info("GET /api/v1/courses/search - centerId={}, categoryId={}, courseName={}, instructor={}",
+                centerId, categoryId, courseName, instructor);
+
+        CourseSearchRequest request = CourseSearchRequest.builder()
+                .centerId(centerId)
+                .categoryId(categoryId)
+                .courseName(courseName)
+                .instructor(instructor)
+                .build();
+
+        // CourseSearchResponse 리스트 반환 (목록용)
+        List<CourseSearchResponse> courses = courseService.searchCourses(request);
+
+        log.info("검색 결과: {}개", courses.size());
 
         return ResponseEntity.ok(
-                ApiResponse.success(Map.of("course", course))
+                ApiResponse.success(Map.of("courses", courses))
         );
     }
 }
