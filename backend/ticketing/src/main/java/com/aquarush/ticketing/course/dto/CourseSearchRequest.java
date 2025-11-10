@@ -24,4 +24,11 @@ public class CourseSearchRequest {
 
     @Schema(description = "강사명", example = "김코치")
     private String instructor;
+
+    @Schema(
+            description = "요일 (복수 선택 가능, 쉼표로 구분)",
+            example = "월,수",
+            allowableValues = {"월", "화", "수", "목", "금", "토", "일"}
+    )
+    private String weekday;
 }

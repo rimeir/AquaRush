@@ -24,16 +24,21 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
      * - c.center.id → c.centerId (Course에 center 연관관계 없음)
      * - c.category.id → c.category.id (Category는 연관관계 있음)
      */
-    @Query("SELECT c FROM Course c " +
-            "WHERE (:centerId IS NULL OR c.centerId = :centerId) " +
-            "AND (:categoryId IS NULL OR c.category.id = :categoryId) " +
-            "AND (:courseName IS NULL OR c.name LIKE %:courseName%) " +
-            "AND (:instructor IS NULL OR c.instructor LIKE %:instructor%)")
+    @Query("""
+            SELECT c FROM Course c
+            WHERE (:centerId IS NULL OR c.centerId = :centerId)
+            AND (:categoryId IS NULL OR c.category.id = :categoryId)
+            AND (:courseName IS NULL OR c.name LIKE CONCAT('%', :courseName, '%'))
+            AND (:instructor IS NULL OR c.instructor LIKE CONCAT('%', :instructor, '%'))
+            AND (:weekday IS NULL OR c.weekdays LIKE CONCAT('%', :weekday, '%'))
+            ORDER BY c.startDate ASC, c.timeSlot ASC
+            """)
     List<Course> searchCourses(
             @Param("centerId") Long centerId,
             @Param("categoryId") Long categoryId,
             @Param("courseName") String courseName,
-            @Param("instructor") String instructor
+            @Param("instructor") String instructor,
+            @Param("weekday") String weekday
     );
 
     /**
