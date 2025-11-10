@@ -1,0 +1,54 @@
+USE aquarush;
+
+-- centers 테이블 생성
+CREATE TABLE IF NOT EXISTS centers (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(200) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- categories 테이블 생성
+CREATE TABLE IF NOT EXISTS categories (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    description VARCHAR(200),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    display_order INT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- courses 테이블 생성
+CREATE TABLE IF NOT EXISTS courses (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    center_id BIGINT NOT NULL,
+    center_name VARCHAR(50) NOT NULL,
+    category_id BIGINT,
+    subcategory VARCHAR(30),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    weekdays VARCHAR(100) NOT NULL,
+    time_slot VARCHAR(20) NOT NULL,
+    target_audience VARCHAR(20) NOT NULL,
+    current_capacity INT NOT NULL DEFAULT 0,
+    max_capacity INT NOT NULL,
+    price INT NOT NULL,
+    instructor VARCHAR(50),
+    location VARCHAR(100),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_sessions INT NOT NULL,
+    requirements VARCHAR(100),
+    level VARCHAR(20),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+);
+
+-- 확인
+SHOW TABLES;
