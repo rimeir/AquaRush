@@ -97,4 +97,22 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
      * @return 예약 목록
      */
     List<Reservation> findByStatus(ReservationStatus status);
+
+    /**
+     * 특정 유저보다 먼저 생성된 활성 예약 수 조회 (순위 계산용)
+     *
+     * @param courseId 강좌 ID
+     * @param userId 유저 ID
+     * @return 해당 유저보다 먼저 생성된 예약 수 (0이면 1등)
+     */
+    @Query("SELECT COUNT(r) FROM Reservation r " +
+            "WHERE r.course.id = :courseId " +
+            "AND r.status IN ('CONFIRMED', 'PENDING') " +
+            "AND r.createdAt < (" +
+            "  SELECT r2.createdAt FROM Reservation r2 " +
+            "  WHERE r2.course.id = :courseId " +
+            "  AND r2.userId = :userId " +
+            "  AND r2.status IN ('CONFIRMED', 'PENDING')" +
+            ")")
+    long countReservationsBeforeUser(@Param("courseId") Long courseId, @Param("userId") Long userId);
 }

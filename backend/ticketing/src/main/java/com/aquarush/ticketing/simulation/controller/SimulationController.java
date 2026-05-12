@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -57,8 +58,11 @@ public class SimulationController {
         String simulationId = simulationService.createSimulation(
                 request.getCourseId(), user, bots);
 
-        // 4. 비동기로 봇 시뮬레이션 시작
-        simulationService.startBotSimulation(simulationId, request.getCourseId(), bots);
+        // 4. 비동기로 봇 + 유저 예약 시도 시작 (유저를 맨 앞에 추가)
+        List<VirtualUser> participants = new ArrayList<>();
+        participants.add(user);
+        participants.addAll(bots);
+        simulationService.startBotSimulation(simulationId, request.getCourseId(), participants);
 
         // 5. 현황 조회
         SimulationStatusResponse status = simulationService.getStatus(simulationId);

@@ -59,6 +59,7 @@ public class SimulationService {
         String key = "simulation:" + simulationId;
         redisTemplate.opsForHash().put(key, "courseId", courseId.toString());
         redisTemplate.opsForHash().put(key, "userId", user.getSessionId());
+        redisTemplate.opsForHash().put(key, "userDbId", user.getId().toString());
         redisTemplate.opsForHash().put(key, "nickname", user.getNickname());
         redisTemplate.opsForHash().put(key, "botCount", String.valueOf(bots.size()));
         redisTemplate.opsForHash().put(key, "status", "RUNNING");
@@ -223,6 +224,7 @@ public class SimulationService {
         // Redis에서 정보 조회
         Object courseIdObj = redisTemplate.opsForHash().get(key, "courseId");
         Object userIdObj = redisTemplate.opsForHash().get(key, "userId");
+        Object userDbIdObj = redisTemplate.opsForHash().get(key, "userDbId");
         Object nicknameObj = redisTemplate.opsForHash().get(key, "nickname");
         Object botCountObj = redisTemplate.opsForHash().get(key, "botCount");
         Object statusObj = redisTemplate.opsForHash().get(key, "status");
@@ -235,6 +237,7 @@ public class SimulationService {
 
         Long courseId = Long.parseLong(courseIdObj.toString());
         String userId = userIdObj.toString();
+        Long userDbId = userDbIdObj != null ? Long.parseLong(userDbIdObj.toString()) : null;
         String nickname = nicknameObj.toString();
         int botCount = Integer.parseInt(botCountObj.toString());
         String status = statusObj.toString();
@@ -255,6 +258,15 @@ public class SimulationService {
         // 남은 좌석 계산 (안전하게)
         int remainingSeats = Math.max(0, course.getMaxCapacity() - course.getCurrentCapacity());
 
+        // 유저 예약 성공 여부 및 순위
+        boolean myReservationSuccess = userDbId != null &&
+                reservationRepository.existsActiveByCourseIdAndUserId(courseId, userDbId);
+        Integer myPosition = null;
+        if (myReservationSuccess) {
+            long before = reservationRepository.countReservationsBeforeUser(courseId, userDbId);
+            myPosition = (int) before + 1;
+        }
+
         return SimulationStatusResponse.builder()
                 .simulationId(simulationId)
                 .courseId(courseId)
@@ -268,8 +280,8 @@ public class SimulationService {
                 .queueLength(queueLength != null ? queueLength : 0L)
                 .myRank(myRank)
                 .estimatedWaitTime(estimatedWaitTime)
-                .myReservationSuccess(false) // TODO: 실제 예약 성공 여부 확인
-                .myPosition(null) // TODO: 실제 순위 계산
+                .myReservationSuccess(myReservationSuccess)
+                .myPosition(myPosition)
                 .build();
     }
 
