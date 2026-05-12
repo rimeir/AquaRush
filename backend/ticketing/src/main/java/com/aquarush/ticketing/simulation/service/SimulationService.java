@@ -66,8 +66,10 @@ public class SimulationService {
         redisTemplate.opsForHash().put(key, "failCount", "0");
         redisTemplate.opsForHash().put(key, "totalAttempts", "0");
 
-        log.info("✅ 시뮬레이션 생성: id={}, courseId={}, botCount={}",
-                simulationId, courseId, bots.size());
+        // 유저를 대기열에 자동 진입
+        waitingQueueService.enterQueue(user.getSessionId(), courseId);
+        log.info("✅ 시뮬레이션 생성: id={}, courseId={}, botCount={}, userSessionId={}",
+                simulationId, courseId, bots.size(), user.getSessionId());
 
         return simulationId;
     }
@@ -151,8 +153,12 @@ public class SimulationService {
             redisTemplate.opsForHash().put(key, "errorMessage", e.getMessage());
 
         } finally {
-            // ⭐ 봇 정리 (성공/실패 관계없이)
+            // 봇 정리 (성공/실패 관계없이)
             cleanupBots(simulationId, bots);
+
+            // 대기열 정리
+            waitingQueueService.clearQueue(courseId);
+            log.info("대기열 초기화 완료: simulationId={}, courseId={}", simulationId, courseId);
 
             // SSE 연결 종료
             closeEmitter(simulationId);
@@ -346,6 +352,10 @@ public class SimulationService {
 
         // 봇 중단 플래그 설정 (최대 2초 내 봇 스레드 종료)
         botService.stopBotSimulation(simulationId);
+
+        // 대기열 정리
+        Long courseId = Long.parseLong(redisTemplate.opsForHash().get(key, "courseId").toString());
+        waitingQueueService.clearQueue(courseId);
 
         // 상태 변경
         redisTemplate.opsForHash().put(key, "status", "STOPPED");

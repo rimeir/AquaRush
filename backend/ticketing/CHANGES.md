@@ -178,6 +178,75 @@ Response: ApiResponse<SimulationStatusResponse>
 
 ---
 
+---
+
+## 시뮬레이션 유저 대기열 자동 진입 및 종료 시 대기열 정리
+
+### 배경
+
+Swagger 테스트 결과 두 가지 문제가 확인되었습니다.
+
+1. **`myRank: null`** — 시뮬레이션 시작 시 유저 본인이 대기열에 진입하지 않아 순번이 조회되지 않았습니다.
+2. **`queueLength: 980`** — 시뮬레이션 완료·종료 후에도 실패한 봇들이 대기열에 잔류했습니다.
+
+### 변경 파일
+
+#### `SimulationService.java`
+
+**유저 대기열 자동 진입 (`createSimulation`)**
+
+강좌 초기화 후 유저 세션을 즉시 대기열에 등록합니다. 봇보다 먼저 등록되므로 유저는 항상 앞 순번을 갖습니다.
+
+```java
+// 변경 전
+// (대기열 진입 없음)
+
+// 변경 후
+waitingQueueService.enterQueue(user.getSessionId(), courseId);
+```
+
+**시뮬레이션 완료 시 대기열 정리 (`startBotSimulation` finally 블록)**
+
+봇 정리 후 해당 강좌의 대기열 전체를 초기화합니다.
+
+```java
+// 변경 전
+cleanupBots(simulationId, bots);
+closeEmitter(simulationId);
+
+// 변경 후
+cleanupBots(simulationId, bots);
+waitingQueueService.clearQueue(courseId);
+closeEmitter(simulationId);
+```
+
+**수동 종료 시 대기열 정리 (`stopSimulation`)**
+
+`/stop` 호출 시에도 대기열을 즉시 초기화합니다.
+
+```java
+// 변경 전
+botService.stopBotSimulation(simulationId);
+redisTemplate.opsForHash().put(key, "status", "STOPPED");
+
+// 변경 후
+botService.stopBotSimulation(simulationId);
+Long courseId = Long.parseLong(redisTemplate.opsForHash().get(key, "courseId").toString());
+waitingQueueService.clearQueue(courseId);
+redisTemplate.opsForHash().put(key, "status", "STOPPED");
+```
+
+### 테스트 결과 (봇 50명, 정원 20명)
+
+| 항목 | 수정 전 | 수정 후 |
+|---|---|---|
+| `myRank` (시작 직후) | null | 1 |
+| `queueLength` (완료 후) | 980 | **0** |
+| `successCount` (완료 후) | 0 | 20 |
+| `failCount` (완료 후) | 0 | 30 |
+
+---
+
 ### 미완성 항목 (이슈 #9 기준)
 
 | 항목 | 상태 |
