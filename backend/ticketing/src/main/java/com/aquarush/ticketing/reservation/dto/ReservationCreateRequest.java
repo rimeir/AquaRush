@@ -36,4 +36,7 @@ public class ReservationCreateRequest {
 
     @Schema(description = "이메일", example = "hong@example.com")
     private String userEmail;
+
+    @Schema(description = "세션 ID (대기열 식별용)", example = "550e8400-e29b-41d4-a716-446655440000")
+    private String sessionId;
 }
