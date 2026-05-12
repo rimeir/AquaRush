@@ -247,11 +247,84 @@ redisTemplate.opsForHash().put(key, "status", "STOPPED");
 
 ---
 
+---
+
+---
+
+## 시뮬레이션 유저 예약 성공 여부 및 순위 구현
+
+### 배경
+
+`SimulationStatusResponse`의 `myReservationSuccess`와 `myPosition` 필드가 각각 `false`, `null`로 하드코딩되어 있었습니다. 유저가 대기열에는 진입하지만 실제 예약 시도를 하지 않아 본인 결과를 알 수 없는 상태였습니다.
+
+### 변경 파일
+
+#### `SimulationController.java`
+
+유저를 participants 맨 앞에 추가해 봇과 함께 예약 경쟁에 참여시킵니다. 대기열에서 이미 1번 순위를 갖고 있으므로 우선권이 있지만, 멀티스레드 환경에서 봇과 실제 경쟁합니다.
+
+```java
+// 변경 전
+simulationService.startBotSimulation(simulationId, request.getCourseId(), bots);
+
+// 변경 후
+List<VirtualUser> participants = new ArrayList<>();
+participants.add(user);  // 유저를 맨 앞에 추가
+participants.addAll(bots);
+simulationService.startBotSimulation(simulationId, request.getCourseId(), participants);
+```
+
+#### `SimulationService.java`
+
+**`createSimulation()`** — `userDbId`(VirtualUser DB PK) Redis에 저장. `userId`(sessionId)는 대기열 식별용, `userDbId`는 DB 예약 조회용으로 구분합니다.
+
+```java
+redisTemplate.opsForHash().put(key, "userDbId", user.getId().toString());
+```
+
+**`getStatus()`** — DB에서 유저 예약 존재 여부와 순위를 계산합니다.
+
+```java
+boolean myReservationSuccess = userDbId != null &&
+        reservationRepository.existsActiveByCourseIdAndUserId(courseId, userDbId);
+Integer myPosition = null;
+if (myReservationSuccess) {
+    long before = reservationRepository.countReservationsBeforeUser(courseId, userDbId);
+    myPosition = (int) before + 1;
+}
+```
+
+#### `ReservationRepository.java`
+
+유저보다 먼저 생성된 활성 예약 수를 조회하는 쿼리를 추가합니다. `countReservationsBeforeUser() + 1`이 유저의 최종 순위입니다.
+
+```java
+@Query("SELECT COUNT(r) FROM Reservation r " +
+        "WHERE r.course.id = :courseId " +
+        "AND r.status IN ('CONFIRMED', 'PENDING') " +
+        "AND r.createdAt < (" +
+        "  SELECT r2.createdAt FROM Reservation r2 " +
+        "  WHERE r2.course.id = :courseId AND r2.userId = :userId " +
+        "  AND r2.status IN ('CONFIRMED', 'PENDING')" +
+        ")")
+long countReservationsBeforeUser(@Param("courseId") Long courseId, @Param("userId") Long userId);
+```
+
+### 테스트 결과 (봇 50명, 정원 20명)
+
+| 항목 | 수정 전 | 수정 후 |
+|---|---|---|
+| `myReservationSuccess` | false (하드코딩) | **true** |
+| `myPosition` | null (하드코딩) | **4** (51명 중 4번째) |
+
+`myPosition: 4`는 대기열 1번임에도 멀티스레드 경쟁으로 일부 봇이 앞서 예약한 결과로, 실제 티켓팅의 경쟁 상황을 반영합니다.
+
+---
+
 ### 미완성 항목 (이슈 #9 기준)
 
 | 항목 | 상태 |
 |---|---|
-| `SimulationService` — `myReservationSuccess`, `myPosition` | TODO 상태 |
 | SSE 실시간 대시보드 | 미구현 |
 | 프론트엔드 전체 | 미구현 |
 | 테스트 (10/100/1000명 동시 접속) | 미구현 |
