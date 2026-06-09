@@ -63,9 +63,9 @@ public class SimulationService {
         redisTemplate.opsForHash().put(key, "nickname", user.getNickname());
         redisTemplate.opsForHash().put(key, "botCount", String.valueOf(bots.size()));
         redisTemplate.opsForHash().put(key, "status", "RUNNING");
-        redisTemplate.opsForHash().put(key, "successCount", "0");
-        redisTemplate.opsForHash().put(key, "failCount", "0");
-        redisTemplate.opsForHash().put(key, "totalAttempts", "0");
+        redisTemplate.opsForHash().put(key, "successCount", 0L);
+        redisTemplate.opsForHash().put(key, "failCount", 0L);
+        redisTemplate.opsForHash().put(key, "totalAttempts", 0L);
 
         // 유저를 대기열에 자동 진입
         waitingQueueService.enterQueue(user.getSessionId(), courseId);

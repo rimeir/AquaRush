@@ -125,17 +125,20 @@ public class BotService {
 
                     if (success) {
                         successCount.incrementAndGet();
-                        redisTemplate.opsForHash().increment(simKey, "successCount", 1L);
+                        try { redisTemplate.opsForHash().increment(simKey, "successCount", 1L); }
+                        catch (Exception ex) { log.warn("Redis successCount increment 실패: {}", ex.getMessage()); }
                         log.debug("✅ 봇 예약 성공: {}", bot.getNickname());
                     } else {
                         failCount.incrementAndGet();
-                        redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
+                        try { redisTemplate.opsForHash().increment(simKey, "failCount", 1L); }
+                        catch (Exception ex) { log.warn("Redis failCount increment 실패: {}", ex.getMessage()); }
                         log.debug("❌ 봇 예약 최종 실패: {}", bot.getNickname());
                     }
 
                 } catch (Exception e) {
                     failCount.incrementAndGet();
-                    redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
+                    try { redisTemplate.opsForHash().increment(simKey, "failCount", 1L); }
+                    catch (Exception ex) { log.warn("Redis failCount increment 실패: {}", ex.getMessage()); }
                     log.error("봇 예약 에러: botId={}", bot.getId(), e);
 
                 } finally {
