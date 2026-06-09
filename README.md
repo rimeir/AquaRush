@@ -1,33 +1,136 @@
-# AquaRush - 수영 수강신청 연습 시뮬레이션
+# 🏊 AquaRush — 수켓팅 시뮬레이터
 
-> 매번 실패하는 수켓팅... **AquaRush**로 수켓팅 연습해서 행수하자!  
-> 나도 이제 수켓팅 마스터!
+> **수켓팅(수영 티켓팅)** 경쟁 환경을 직접 체험하는 시뮬레이션 시스템  
+> 분산 락 · 유량제어 · Redis 대기열 · SSE 실시간 통신 · 멀티스레드 동시성 제어
 
-**AquaRush**는 수영 수강신청(수켓팅) 경쟁 환경을 재현하는 시뮬레이션 시스템입니다.  
-분산 락, 유량제어, 대기열, 멀티스레드 동시성 제어 등 실제 티케팅 시스템에서 사용하는 기술을 직접 구현하고 학습합니다.
+[![Java](https://img.shields.io/badge/Java-17-orange)](https://openjdk.org/projects/jdk/17/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.6-brightgreen)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
+[![Redis](https://img.shields.io/badge/Redis-Redisson-red)](https://redis.io/)
 
 ---
 
-## 학습 목표
+## 프로젝트 개요
 
-- 동시성 제어 (분산 락 + 비관적 락 이중 구조)
-- API 유량제어 (Token Bucket 알고리즘 + Redis)
-- 대기열 관리 (Redis Sorted Set)
-- 대규모 동시 요청 시뮬레이션 (멀티스레드 + 재시도 로직)
-- SSE 기반 실시간 통신
+수영장 수강신청은 매달 정해진 시간에 수백~수천 명이 동시에 몰리는 실제 경쟁 시스템입니다.  
+**AquaRush**는 이 상황을 그대로 재현합니다.
+
+- 사용자는 닉네임과 경쟁 난이도(봇 수)를 설정하고 시뮬레이션에 참가
+- 오전 9시가 되면 설정한 수의 봇이 자동으로 예약 경쟁을 시작
+- 사용자는 F5로 새로고침하여 접속 대기열을 통과하고 신청 버튼을 눌러 경쟁에 참여
+- 결과(내 순위 / 성공 여부 / 전체 통계)를 실시간으로 확인
+
+---
+
+## 스크린샷
+
+| 시작 페이지 | 수강신청 (카운트다운) |
+|---|---|
+| ![시작](frontend/docs/screenshots/01_start_page.png) | ![카운트다운](frontend/docs/screenshots/03_registration_countdown.png) |
+
+| 접속 유량제어 (새로고침 시) | 예약 대기열 (실시간) |
+|---|---|
+| ![유량제어](frontend/docs/screenshots/04_access_queue_overlay.png) | ![대기열](frontend/docs/screenshots/06_queue_modal_waiting.png) |
+
+| 결과 — 성공 | 결과 — 실패 |
+|---|---|
+| ![성공](frontend/docs/screenshots/08_result_success.png) | ![실패](frontend/docs/screenshots/09_result_fail.png) |
 
 ---
 
 ## 기술 스택
 
 | 분류 | 기술 |
-|------|------|
-| Language | Java 17 |
-| Framework | Spring Boot 3.5.6 |
-| Database | MySQL |
-| Cache / Queue | Redis (Redisson 3.24.3) |
-| API 문서 | Swagger / SpringDoc OpenAPI 2.8.6 |
-| Infrastructure | Docker Compose |
+|---|---|
+| **Backend** | Java 17, Spring Boot 3.5.6 |
+| **Database** | MySQL (JPA + Hibernate) |
+| **Cache / Queue** | Redis, Redisson 3.24.3 |
+| **Frontend** | React 19, Vite 8, React Router v7 |
+| **HTTP Client** | Axios |
+| **실시간 통신** | SSE (Server-Sent Events) |
+| **API 문서** | SpringDoc OpenAPI (Swagger) |
+| **Infrastructure** | Docker Compose |
+
+---
+
+## 핵심 기술 상세
+
+### 1. 이중 동시성 제어 — 정원 초과 완벽 차단
+
+실제 티켓팅 시스템의 핵심 문제인 **race condition**을 두 단계로 막습니다.
+
+```
+예약 요청
+  └─ Redisson 분산 락 (여러 서버 간 동시성)
+       └─ DB SELECT FOR UPDATE (단일 트랜잭션 내 동시성)
+            └─ 중복 예약 확인 → 정원 확인 → 예약 저장
+```
+
+- **Redisson 분산 락**: 여러 서버 인스턴스가 동시에 같은 강좌를 처리할 때 발생하는 동시성 문제 해결
+- **비관적 락(SELECT FOR UPDATE)**: 같은 서버 내에서 동시 트랜잭션 간 정원 증감의 원자성 보장
+- 1000명이 동시에 정원 20석에 요청해도 **단 한 건도 초과 예약되지 않음**
+
+### 2. Redis Sorted Set 대기열 — 공정한 순서 보장
+
+```
+사용자 진입 → enterQueue(sessionId, courseId)
+               └─ ZADD queue:course:{id} {timestamp} {sessionId}
+
+예약 시도 시 → checkQueueAllowed()
+               └─ ZRANK 조회 → 상위 10명 이내면 통과, 초과면 "대기 중" 예외
+
+예약 완료 후 → removeFromQueue()
+               └─ ZREM → 뒤 사람 순번 자동 앞당김
+```
+
+- Score에 진입 시간(timestamp)을 사용해 **선착순 공정성** 보장
+- BotService의 재시도 로직(2초 간격, 최대 5회)이 대기열 처리를 자연스럽게 시뮬레이션
+
+### 3. SSE 실시간 스트림 — 경쟁 현황 1초 단위 업데이트
+
+```
+SimulationScheduler (1초마다)
+  └─ Redis Hash 조회: simulation:{id} → {successCount, failCount, ...}
+  └─ WaitingQueueService → queueLength, myRank
+  └─ ReservationRepository → remainingSeats
+  └─ SseEmitter.send(SimulationStatusResponse)
+       └─ 프론트엔드 EventSource 수신 → 실시간 UI 업데이트
+```
+
+- 봇 1개 완료 시마다 `HINCRBY`로 즉시 Redis 카운터 증가 → SSE로 실시간 반영
+- 프론트엔드는 SSE + 1.5초 폴링 이중 구조로 race condition(봇 선완료) 대비
+
+### 4. 멀티스레드 봇 시뮬레이션
+
+```java
+ExecutorService executor = Executors.newFixedThreadPool(Math.min(botCount, 100));
+CountDownLatch latch = new CountDownLatch(bots.size());
+
+// 각 봇: 재시도 전략 적용
+tryReservationWithRetry(courseId, bot, attempts, stopFlag)
+  ├─ 성공 → HINCRBY successCount +1
+  ├─ 정원 초과 → 즉시 포기 (재시도 없음)
+  ├─ 대기열 순번 초과 → 2초 후 재시도 (최대 5회)
+  └─ 예외 → HINCRBY failCount +1
+```
+
+- ThreadPool 크기: `min(봇 수, 100)` — 과도한 스레드 생성 방지
+- `AtomicBoolean stopFlag`로 `/stop` API 호출 시 모든 봇 스레드 안전 종료 (최대 2초)
+- `CountDownLatch`로 모든 봇 완료 대기 후 자원 정리
+
+### 5. 유량제어 (Rate Limiting)
+
+- 슬라이딩 윈도우 알고리즘, Redis 원자 연산 기반
+- 기본 제한: 5회/분 (`/api/**` 전체 적용)
+- SSE 스트림 및 상태 조회 엔드포인트는 제외 (지속 연결 특성상)
+- 초과 시 HTTP 429 + `Retry-After` 헤더 응답
+
+### 6. 프론트엔드 UX — 실제 수강신청 사이트 재현
+
+- **`openOnMount` 패턴**: 컴포넌트 마운트 시점 기준으로 "9시 이후 새로고침"과 "같은 세션에서 9시 도달"을 구분
+- **접속 유량제어 오버레이**: 새로고침 시 500~2500 순번에서 0까지 5초 카운트다운 — 실제 대학교/공공기관 수강신청 사이트의 대기 팝업 재현
+- **자동 봇 시작**: 9시가 되는 순간 `startSimulation` 자동 호출 — 버튼 클릭 불필요
+- **버튼 활성화 조건**: 9시 이후 + 새로고침 + 유량제어 통과의 3단계를 모두 만족해야 활성화
 
 ---
 
@@ -38,217 +141,97 @@ AquaRush/
 ├── backend/
 │   └── ticketing/
 │       └── src/main/java/com/aquarush/ticketing/
-│           ├── category/          # 강좌 카테고리 관리
-│           ├── center/            # 수영장/센터 관리
-│           ├── course/            # 강좌 관리 (비관적 락 적용)
-│           ├── reservation/       # 예약 관리 (분산 락 + 비관적 락)
-│           ├── lock/              # Redisson 분산 락 서비스
-│           ├── ratelimit/         # API 유량제어 (Token Bucket)
-│           ├── simulation/        # 시뮬레이션 세션, 봇, 가상 사용자
-│           ├── waitingqueue/      # Redis 기반 대기열
-│           └── global/            # 공통 설정 (Redis, Web, Async, Swagger)
-├── frontend/                      # 프론트엔드 (미구현)
-└── docker-compose.yml             # Redis + Redis Commander
+│           ├── category/       강좌 카테고리
+│           ├── center/         수영장/센터
+│           ├── course/         강좌 (비관적 락)
+│           ├── reservation/    예약 (분산 락 + 비관적 락)
+│           ├── simulation/     시뮬레이션 엔진, 봇, SSE
+│           ├── waitingqueue/   Redis Sorted Set 대기열
+│           ├── lock/           Redisson 분산 락 유틸
+│           ├── ratelimit/      유량제어 인터셉터
+│           └── global/         설정 (Redis, Web, Async, Swagger)
+│
+├── frontend/
+│   └── src/
+│       ├── pages/              StartPage, RegistrationPage, ResultPage, CartPage, CheckoutPage
+│       ├── components/         AquaHeader, QueueModal, AccessQueueOverlay, StatCard, QueueBar
+│       ├── hooks/              useVirtualClock
+│       └── api/                simulation.js (API 클라이언트)
+│
+└── docker-compose.yml          Redis + Redis Commander
 ```
-
----
-
-## 구현 현황
-
-### ✅ 완료
-
-#### 강좌 관리 (Course)
-- 강좌 상세 조회, 다중 조건 검색 (센터/카테고리/강사/요일)
-- 정원 증감 및 상태 자동 전환 (ACTIVE → FULL)
-- 비관적 락 적용 (`SELECT FOR UPDATE`)
-- 시뮬레이션용 정원 초기화 (`resetCapacity`)
-
-#### 예약 관리 (Reservation)
-- 예약 생성 — 분산 락(Redisson) + 비관적 락(DB) 이중 동시성 제어
-- 중복 예약 방지, 정원 초과 완벽 차단
-- 예약 조회 (상세 / 사용자별 / 강좌별) — Fetch Join으로 N+1 해결
-- 예약 취소 및 상태 관리 (PENDING → CONFIRMED → COMPLETED / CANCELLED)
-
-#### 유량제어 (RateLimit)
-- Token Bucket 알고리즘, Redis 원자 연산 기반
-- 기본 제한: 1분에 5회 (`/api/**` 전체 적용)
-- 응답 헤더 포함: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
-- 초과 시 HTTP 429 응답
-
-#### 분산 락 (DistributedLock)
-- Redisson 기반, `executeWithLock(lockKey, waitTime, leaseTime, task)` 유틸 메서드
-- 예약 서비스에 통합 (락 키: `reservation:course:{courseId}`)
-
-#### 시뮬레이션 (Simulation)
-- 가상 사용자 / 봇 생성 및 자동 정리 (만료 1시간, 스케줄러 매 시간 정각)
-- 멀티스레드 동시 예약 시도 (ThreadPool: min(봇 수, 100))
-- 재시도 로직: 최대 5회, 2초 간격 (정원 초과 시 즉시 포기)
-- 성공/실패/시도 횟수 통계 (`BotSimulationResult`)
-- SSE 실시간 상태 스트림 (`/api/v1/simulation/live/{id}`)
-
-#### 대기열 (WaitingQueue)
-- Redis Sorted Set 기반 (score = 진입 시간)
-- 진입, 순위 조회, 예약 허용 판단 (상위 10명)
-- 스케줄러: 1초마다 대기열 처리
-
----
-
-### 미구현 / TODO
-
-#### 긴급 (연동 누락)
-
-| # | 항목 | 위치 | 설명 |
-|---|------|------|------|
-| 1 | `WaitingQueueService.clearQueue()` 미구현 | `SimulationService.resetCourseForSimulation()` | 시뮬레이션 초기화 시 대기열 비워야 함 (TODO 주석 있음) |
-| 2 | 대기열 ↔ 예약 흐름 미통합 | `ReservationService`, `WaitingQueueService` | 현재 대기열과 실제 예약이 연결되지 않음 |
-| 3 | `ReservationRepository.deleteByCourseId()` 미구현 | `SimulationService` | 현재 findAll + deleteAll 방식, 성능 비효율 |
-
-#### 기능 개선
-
-| # | 항목 | 위치 | 설명 |
-|---|------|------|------|
-| 4 | 시뮬레이션 결과 실제화 | `SimulationService` | `myReservationSuccess`, `myPosition` 필드 값이 실제로 채워지지 않음 |
-| 5 | SSE 대기열 정보 추가 | `SimulationService.streamStatus()` | 현재 봇 통계만 전송, 대기열 현황 미포함 |
-| 6 | 봇별 진행 상황 추적 | `BotService` | 개별 봇 성공/실패 이유 추적 없음 |
-
-#### 인증/보안
-
-| # | 항목 | 설명 |
-|---|------|------|
-| 7 | JWT 인증 미구현 | 현재 userId를 쿼리 파라미터로 직접 받음 — 보안 취약 |
-| 8 | `@AuthenticationPrincipal` 미적용 | 인증 후 userId 자동 추출 필요 |
-
-#### 프론트엔드
-
-| # | 항목 | 설명 |
-|---|------|------|
-| 9 | 시뮬레이션 UI | 강좌 선택, 봇 수 설정, 시뮬레이션 실행 화면 |
-| 10 | 실시간 대시보드 | SSE 연결 후 통계 시각화 |
-| 11 | 강좌 검색/예약 UI | 일반 사용자용 수강신청 화면 |
 
 ---
 
 ## API 엔드포인트
 
-### 강좌
+### 시뮬레이션
 ```
-GET  /api/v1/courses/{courseId}     강좌 상세 조회
-GET  /api/v1/courses/search         강좌 검색 (centerId, categoryId, courseName, instructor, weekday)
+POST   /api/v1/simulation/start          시뮬레이션 시작 (봇 생성 및 경쟁 시작)
+GET    /api/v1/simulation/status/{id}    현황 조회
+GET    /api/v1/simulation/live/{id}      실시간 SSE 스트림
+POST   /api/v1/simulation/stop           시뮬레이션 중단
 ```
 
 ### 예약
 ```
-POST   /api/v1/reservations              예약 생성
-GET    /api/v1/reservations/{id}         예약 상세 조회
-GET    /api/v1/reservations/my           내 예약 목록 (?userId=)
-GET    /api/v1/reservations/course/{id}  강좌별 예약 목록
+POST   /api/v1/reservations              예약 생성 (분산 락 적용)
+GET    /api/v1/reservations/{id}         예약 상세
+GET    /api/v1/reservations/my           내 예약 목록
 DELETE /api/v1/reservations/{id}         예약 취소
 ```
 
-### 시뮬레이션
+### 강좌
 ```
-POST   /api/v1/simulation/start          시뮬레이션 시작
-GET    /api/v1/simulation/status/{id}    현황 조회
-GET    /api/v1/simulation/live/{id}      실시간 스트림 (SSE)
+GET    /api/v1/courses/{id}              강좌 상세
+GET    /api/v1/courses/search            강좌 검색 (센터/카테고리/요일 등)
 ```
-
-### 카테고리 / 센터
-```
-GET    /api/v1/categories
-POST   /api/v1/categories
-GET    /api/v1/centers
-POST   /api/v1/centers
-```
-
----
-
-## 시뮬레이션 사용법
-
-**1. 시뮬레이션 시작**
-```json
-POST /api/v1/simulation/start
-{
-  "courseId": 1,
-  "botCount": 1000,
-  "nickname": "수켓팅마스터"
-}
-```
-
-**2. 실시간 모니터링 (SSE)**
-```
-GET /api/v1/simulation/live/{simulationId}
-```
-
-**3. 결과 예시**
-```json
-{
-  "totalBots": 1000,
-  "successCount": 20,
-  "failCount": 980,
-  "successRate": 2.0,
-  "averageAttempts": 1.8
-}
-```
-
----
-
-## 주요 설계 결정
-
-### 이중 동시성 제어
-```
-예약 생성 요청
-  → Redisson 분산 락 (여러 서버 간 동시성)
-    → DB SELECT FOR UPDATE (단일 트랜잭션 내 동시성)
-      → 중복 예약 확인
-      → 정원 확인 및 증가
-      → 예약 저장
-  → 락 해제
-```
-
-### 봇 재시도 전략
-```
-예약 시도 (최대 5회)
-  성공        → 완료
-  정원 초과   → 즉시 포기 (재시도 없음)
-  중복 예약   → 즉시 포기
-  기타 에러   → 2초 후 재시도
-```
-
-### Redis 데이터 구조
-| 용도 | 자료구조 | 키 패턴 |
-|------|----------|---------|
-| 대기열 | Sorted Set | `waiting:queue:{courseId}` |
-| 유량제어 | String (카운터) | `rate_limit:{userId}:{window}` |
-| 분산 락 | Lock (Redisson) | `reservation:course:{courseId}` |
 
 ---
 
 ## 로컬 실행
 
+### 사전 요구사항
+- Java 17+
+- MySQL (DB명: `aquarush`, 사용자: `root`)
+- Docker (Redis용)
+
+### 실행 순서
+
 ```bash
-# Redis 실행
+# 1. Redis 시작
 docker-compose up -d
 
-# 애플리케이션 실행 (MySQL 별도 필요)
+# 2. 백엔드 실행
+cd backend/ticketing
 ./gradlew bootRun
+
+# 3. 프론트엔드 실행
+cd frontend
+npm install
+npm run dev
 ```
 
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- Redis Commander: `http://localhost:8081`
+### 접속 정보
+| 서비스 | URL |
+|---|---|
+| 프론트엔드 | http://localhost:5173 |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| Redis Commander | http://localhost:8081 |
 
 ---
 
-## 브랜치 전략 및 커밋 히스토리
+## 구현 현황
 
-| 이슈 | 내용 |
-|------|------|
-| #7 | 예약 시스템 구현 (엔티티, 서비스, 컨트롤러) |
-| #6 | 강좌 API 구현 |
+| 모듈 | 상태 |
+|---|---|
+| 강좌/센터/카테고리 API | ✅ 완료 |
+| 예약 시스템 (이중 동시성 제어) | ✅ 완료 |
+| 유량제어 (Rate Limiting) | ✅ 완료 |
+| 분산 락 (Redisson) | ✅ 완료 |
+| Redis 대기열 | ✅ 완료 |
+| 시뮬레이션 엔진 (봇, SSE) | ✅ 완료 |
+| 프론트엔드 (React) | ✅ 완료 |
+| 부하 테스트 (10/100/1000명) | ✅ 완료 |
 
-현재 작업 중 (미커밋):
-- 분산 락 (`lock/`)
-- 유량제어 (`ratelimit/`)
-- 시뮬레이션 (`simulation/`)
-- 대기열 (`waitingqueue/`)
-- Redis/Async/Web 설정 (`global/config/`)
-- Docker Compose
+자세한 변경 이력: [`backend/ticketing/CHANGES.md`](backend/ticketing/CHANGES.md) · [`frontend/CHANGES.md`](frontend/CHANGES.md)
