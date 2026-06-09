@@ -1,0 +1,107 @@
+.aq-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.aq-box {
+  background: white;
+  border-radius: 16px;
+  padding: 2.5rem 2rem;
+  width: 420px;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.aq-icon { font-size: 2.8rem; margin-bottom: 0.6rem; }
+
+.aq-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-bottom: 0.5rem;
+}
+
+.aq-desc {
+  color: #666;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.aq-rank-box {
+  background: #f0f7ff;
+  border: 1px solid #bcd8f7;
+  border-radius: 12px;
+  padding: 1.2rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.aq-rank-label {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+
+.aq-rank-num {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #1e90ff;
+  line-height: 1;
+}
+
+.aq-rank-num span {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  margin-left: 4px;
+}
+
+.aq-rank-sub {
+  font-size: 0.9rem;
+  color: #555;
+  margin-top: 0.4rem;
+}
+
+.aq-rank-sub strong { color: #e65100; }
+
+.aq-progress-wrap { text-align: left; margin-bottom: 1.2rem; }
+
+.aq-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.aq-progress-track {
+  height: 12px;
+  background: #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.aq-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1e90ff, #00c6ff);
+  border-radius: 6px;
+  transition: width 0.08s linear;
+}
+
+.aq-notice {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin-top: 0.5rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
