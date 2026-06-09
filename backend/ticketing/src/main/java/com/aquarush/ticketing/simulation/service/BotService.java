@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ public class BotService {
 
     private final VirtualUserService virtualUserService;
     private final ReservationService reservationService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     private static final int MAX_RETRY_ATTEMPTS = 5;
     private static final long RETRY_DELAY_MS = 2000;
@@ -104,11 +106,14 @@ public class BotService {
         ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
         CountDownLatch latch = new CountDownLatch(bots.size());
 
+        String simKey = "simulation:" + simulationId;
+
         for (VirtualUser bot : bots) {
             executor.submit(() -> {
                 try {
                     if (stopFlag.get()) {
                         failCount.incrementAndGet();
+                        redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
                         return;
                     }
                     boolean success = tryReservationWithRetry(
@@ -120,18 +125,21 @@ public class BotService {
 
                     if (success) {
                         successCount.incrementAndGet();
+                        redisTemplate.opsForHash().increment(simKey, "successCount", 1L);
                         log.debug("✅ 봇 예약 성공: {}", bot.getNickname());
                     } else {
                         failCount.incrementAndGet();
+                        redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
                         log.debug("❌ 봇 예약 최종 실패: {}", bot.getNickname());
                     }
 
                 } catch (Exception e) {
                     failCount.incrementAndGet();
+                    redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
                     log.error("봇 예약 에러: botId={}", bot.getId(), e);
 
                 } finally {
-                    latch.countDown();  // 작업 완료 표시
+                    latch.countDown();
                 }
             });
         }
