@@ -16,6 +16,8 @@
 | #12 | 시뮬레이션 프론트엔드 구축 | ✅ CLOSED | React 프론트엔드 완료 |
 | #14 | 프론트엔드 연동 백엔드 수정 | ✅ CLOSED | 레이트 리밋, 실시간 카운터 수정 |
 | #16 | 슬라이딩 윈도우 기반 유량제어 구현 | ✅ CLOSED | 고정 윈도우 → Sorted Set + Lua 교체 |
+| #18 | E2E 통합 테스트 및 failCount 버그 수정 | ✅ CLOSED | Playwright E2E, Redis 직렬화 버그 수정 |
+| #20 | RegistrationPage 재시도 버튼 버그 수정 | ✅ CLOSED | retryCount로 useEffect 재실행 |
 
 ---
 
@@ -49,7 +51,7 @@
 - 멀티스레드: `min(봇 수, 100)` ThreadPool + CountDownLatch
 - 재시도 전략: 최대 5회, 2초 간격, 정원 초과 즉시 포기
 - stop flag로 안전한 스레드 종료 (`/stop` API)
-- 봇별 완료 시 즉시 Redis HINCRBY
+- 봇별 완료 시 즉시 Redis HINCRBY (Long 0L 초기화로 Jackson 직렬화 버그 수정)
 - 유저 대기열 자동 진입 및 예약 결과 추적
 - `myReservationSuccess`, `myPosition` 실제 DB 조회로 계산
 
@@ -76,34 +78,32 @@
 - 08:59:30 → 09:00:00, 실시간 1초 증가
 - sessionStorage로 새로고침 후 시간 연속성 유지
 
+### E2E 테스트
+- Playwright 기반 통합 테스트 (`frontend/scripts/e2e_test.cjs`)
+- StartPage → RegistrationPage 이동, 버튼 상태 검증
+- 시뮬레이션 start/status API 검증 (successCount, failCount, myReservationSuccess)
+- 슬라이딩 윈도우 유량제어 6번째 요청 429 확인
+
 ---
 
 ## 알려진 문제 / 미완성
-
-### 🔴 확인 필요 (E2E 미검증)
-
-| # | 문제 | 위치 | 설명 |
-|---|---|---|---|
-| 1 | 전체 E2E 플로우 미검증 | 전체 | 백엔드 + 프론트엔드를 함께 실행해서 실제 흐름 테스트 필요 |
-| 2 | 프론트엔드 UX 흐름 이상 | RegistrationPage | 사용자 보고: "프로세스가 이상함" — 구체적 재현 후 수정 필요 |
 
 ### 🟡 미구현 / 개선 필요
 
 | # | 항목 | 우선순위 | 설명 |
 |---|---|---|---|
-| 3 | JWT 인증 | 낮음 | 현재 `userId`를 쿼리 파라미터로 직접 받음 |
-| 4 | `deleteByCourseId` 최적화 | 낮음 | 현재 findAll + deleteAll 방식 → 벌크 쿼리로 개선 가능 |
-| 5 | 프론트엔드 DashboardPage 연동 | 낮음 | 컴포넌트는 있으나 라우트 미등록 |
+| 1 | 프론트엔드 UX 흐름 이상 | 낮음 | F5 필요 동작은 의도된 설계, 재시도 버그는 #21에서 수정 완료 |
+| 2 | JWT 인증 | 낮음 | 현재 `userId`를 쿼리 파라미터로 직접 받음 |
+| 3 | `deleteByCourseId` 최적화 | 낮음 | 현재 findAll + deleteAll 방식 → 벌크 쿼리로 개선 가능 |
+| 4 | 프론트엔드 DashboardPage 연동 | 낮음 | 컴포넌트는 있으나 라우트 미등록 |
 
 ---
 
 ## 다음 작업 우선순위
 
 ```
-1. 백엔드 + 프론트엔드 로컬 E2E 실행 및 플로우 검증
-2. UX 이상 문제 재현 및 수정
-3. (선택) DashboardPage 라우트 연결
-4. (선택) JWT 인증 추가
+1. (선택) DashboardPage 라우트 연결
+2. (선택) JWT 인증 추가
 ```
 
 ---
@@ -120,6 +120,8 @@
 | #13 | `feature/#12-simulation-frontend` | 프론트엔드 구축 | ✅ merged |
 | #15 | `feature/#14-simulation-backend-fix` | 백엔드 수정 | ✅ merged |
 | #17 | `feature/#16-sliding-window-rate-limit` | 슬라이딩 윈도우 유량제어 | ✅ merged |
+| #19 | `feature/#18-e2e-test` | E2E 테스트 및 failCount 버그 수정 | ✅ merged |
+| #21 | `feature/#20-registration-ux-fix` | 재시도 버튼 버그 수정 | ✅ merged |
 
 ---
 
