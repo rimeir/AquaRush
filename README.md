@@ -123,10 +123,12 @@ tryReservationWithRetry(courseId, bot, attempts, stopFlag)
 
 ### 5. 유량제어 (Rate Limiting)
 
-- 슬라이딩 윈도우 알고리즘, Redis 원자 연산 기반
+- **Redis Sorted Set 기반 슬라이딩 윈도우** — 요청 시각(ms)을 score로 저장, 항상 "지금 기준 과거 60초"를 동적 계산
+- Lua 스크립트로 `ZREMRANGEBYSCORE` → `ZCARD` → `ZADD` 원자 처리 — race condition 방지
+- 고정 윈도우 카운터 대비 경계 뚫기(boundary attack) 차단
 - 기본 제한: 5회/분 (`/api/**` 전체 적용)
 - SSE 스트림 및 상태 조회 엔드포인트는 제외 (지속 연결 특성상)
-- 초과 시 HTTP 429 + `Retry-After` 헤더 응답
+- 초과 시 HTTP 429 + `X-RateLimit-Remaining`, `X-RateLimit-Reset` 헤더 응답
 
 ### 6. 프론트엔드 UX — 실제 수강신청 사이트 재현
 
