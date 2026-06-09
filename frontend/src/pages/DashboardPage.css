@@ -1,0 +1,133 @@
+.aqua-header {
+  background: linear-gradient(135deg, #1e90ff 0%, #0066cc 100%);
+  color: white;
+  padding: 1rem 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.dashboard-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dashboard-header {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 1.5rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  animation: slideUp 0.8s ease-out 0.1s both;
+}
+
+.dashboard-header h1 { font-size: 22px; color: #333; margin-bottom: 4px; }
+.my-nickname { color: #555; font-size: 14px; }
+.my-nickname strong { color: #1e90ff; }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #e3f2fd;
+  color: #0066cc;
+  border: 1px solid #90caf9;
+}
+
+.status-badge.running { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
+.status-badge.completed { background: #e3f2fd; color: #0066cc; border-color: #90caf9; }
+.status-badge.stopped { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
+
+.stop-btn {
+  background: transparent;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.stop-btn:hover:not(:disabled) { background: #dc3545; color: white; }
+.stop-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  animation: slideUp 0.8s ease-out 0.2s both;
+}
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.queue-section, .progress-section {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 1.5rem 2rem;
+  animation: slideUp 0.8s ease-out 0.3s both;
+}
+
+.queue-section h2, .progress-section h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1rem;
+  border-bottom: 3px solid #1e90ff;
+  padding-bottom: 0.4rem;
+}
+
+.queue-info {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 14px;
+  color: #555;
+}
+
+.my-rank strong { color: #0066cc; font-size: 18px; }
+.wait-time strong { color: #1e90ff; }
+.queue-done { color: #2e7d32; font-weight: 600; }
+
+.progress-bar-wrap {
+  background: #e3f2fd;
+  border-radius: 8px;
+  height: 14px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #1e90ff, #0066cc);
+  border-radius: 8px;
+  transition: width 0.5s ease;
+}
+
+.progress-label {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #555;
+  text-align: right;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
