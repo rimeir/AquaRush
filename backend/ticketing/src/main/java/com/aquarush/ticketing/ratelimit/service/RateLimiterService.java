@@ -2,126 +2,100 @@ package com.aquarush.ticketing.ratelimit.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.TimeUnit;
+import java.util.Collections;
+import java.util.Set;
+import java.util.UUID;
 
-/**
- * 유량제어 서비스 (Token Bucket 알고리즘)
- *
- * 목적:
- * 1. 과도한 요청 차단
- * 2. 서버 보호
- * 3. 공정한 자원 분배
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RateLimiterService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
-    /**
-     * 요청 허용 여부 확인
-     *
-     * @param userId 사용자 ID (세션 ID)
-     * @param limit 제한 횟수 (예: 5)
-     * @param windowSeconds 시간 윈도우 (초 단위, 예: 60)
-     * @return true: 허용, false: 거부
-     *
-     * 예시:
-     * isAllowed("user123", 5, 60)
-     * → 1분에 5회까지 허용
-     */
+    // 슬라이딩 윈도우: 윈도우 밖 항목 제거 → 카운트 확인 → 한도 미만이면 추가 (원자적)
+    private static final String SLIDING_WINDOW_SCRIPT =
+        "local key = KEYS[1]\n" +
+        "local now = tonumber(ARGV[1])\n" +
+        "local window = tonumber(ARGV[2])\n" +
+        "local limit = tonumber(ARGV[3])\n" +
+        "local member = ARGV[4]\n" +
+        "redis.call('ZREMRANGEBYSCORE', key, 0, now - window)\n" +
+        "local count = redis.call('ZCARD', key)\n" +
+        "if count < limit then\n" +
+        "  redis.call('ZADD', key, now, member)\n" +
+        "  redis.call('EXPIRE', key, math.ceil(window / 1000) + 1)\n" +
+        "  return 1\n" +
+        "else\n" +
+        "  return 0\n" +
+        "end";
+
     public boolean isAllowed(String userId, int limit, int windowSeconds) {
-        // Redis 키 생성: "ratelimit:user123"
         String key = "ratelimit:" + userId;
+        long now = System.currentTimeMillis();
+        long windowMs = (long) windowSeconds * 1000;
+        String member = now + "-" + UUID.randomUUID().toString().substring(0, 8);
 
         try {
-            // 현재 카운트 증가 (원자적 연산)
-            Long currentCount = redisTemplate.opsForValue().increment(key);
-
-            // 첫 요청일 때만 TTL 설정
-            if (currentCount == 1) {
-                redisTemplate.expire(key, windowSeconds, TimeUnit.SECONDS);
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(SLIDING_WINDOW_SCRIPT, Long.class);
+            Long result = stringRedisTemplate.execute(
+                script,
+                Collections.singletonList(key),
+                String.valueOf(now),
+                String.valueOf(windowMs),
+                String.valueOf(limit),
+                member
+            );
+            boolean allowed = Long.valueOf(1L).equals(result);
+            if (!allowed) {
+                log.warn("요청 거부 (슬라이딩 윈도우): userId={}", userId);
             }
-
-            // 제한 확인
-            boolean allowed = currentCount <= limit;
-
-            if (allowed) {
-                log.debug("요청 허용: userId={}, count={}/{}",
-                        userId, currentCount, limit);
-            } else {
-                log.warn("요청 거부: userId={}, count={}/{} (제한 초과)",
-                        userId, currentCount, limit);
-            }
-
             return allowed;
-
         } catch (Exception e) {
-            log.error("유량제어 확인 중 오류 발생: userId={}", userId, e);
-            // 오류 시 허용 (Fail-open 정책)
+            log.error("유량제어 확인 중 오류: userId={}", userId, e);
             return true;
         }
     }
 
-    /**
-     * 남은 요청 횟수 조회
-     *
-     * @param userId 사용자 ID
-     * @param limit 제한 횟수
-     * @return 남은 횟수 (0 이상)
-     */
-    public int getRemainingRequests(String userId, int limit) {
+    public int getRemainingRequests(String userId, int limit, int windowSeconds) {
         String key = "ratelimit:" + userId;
+        long now = System.currentTimeMillis();
+        long windowMs = (long) windowSeconds * 1000;
 
         try {
-            Object value = redisTemplate.opsForValue().get(key);
-
-            if (value == null) {
-                return limit;  // 아직 요청 안 함
-            }
-
-            int currentCount = Integer.parseInt(value.toString());
-            int remaining = limit - currentCount;
-
-            return Math.max(0, remaining);  // 음수 방지
-
+            stringRedisTemplate.opsForZSet().removeRangeByScore(key, 0, now - windowMs);
+            Long count = stringRedisTemplate.opsForZSet().zCard(key);
+            return Math.max(0, (int) (limit - (count != null ? count : 0)));
         } catch (Exception e) {
             log.error("남은 요청 횟수 조회 중 오류", e);
             return 0;
         }
     }
 
-    /**
-     * 다음 윈도우까지 남은 시간 (초)
-     *
-     * @param userId 사용자 ID
-     * @return 남은 시간 (초), 없으면 0
-     */
-    public long getTimeUntilReset(String userId) {
+    // 윈도우 안 가장 오래된 요청이 윈도우 밖으로 나갈 때까지 남은 초
+    public long getTimeUntilReset(String userId, int windowSeconds) {
         String key = "ratelimit:" + userId;
+        long now = System.currentTimeMillis();
+        long windowMs = (long) windowSeconds * 1000;
 
         try {
-            Long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
-            return ttl != null && ttl > 0 ? ttl : 0;
+            Set<ZSetOperations.TypedTuple<String>> oldest =
+                stringRedisTemplate.opsForZSet().rangeWithScores(key, 0, 0);
+            if (oldest == null || oldest.isEmpty()) return 0;
 
+            Double oldestScore = oldest.iterator().next().getScore();
+            if (oldestScore == null) return 0;
+
+            long remaining = (oldestScore.longValue() + windowMs - now) / 1000;
+            return Math.max(0, remaining);
         } catch (Exception e) {
             log.error("리셋 시간 조회 중 오류", e);
             return 0;
         }
-    }
-
-    /**
-     * 유량제한 초기화 (관리자용)
-     *
-     * @param userId 사용자 ID
-     */
-    public void resetRateLimit(String userId) {
-        String key = "ratelimit:" + userId;
-        redisTemplate.delete(key);
-        log.info("유량제한 초기화: userId={}", userId);
     }
 }
