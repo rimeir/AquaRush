@@ -51,11 +51,13 @@ export default function RegistrationPage() {
   const [queueTarget, setQueueTarget] = useState(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
 
   // Prevent calling startSimulation more than once per page session
   const autoStartedRef = useRef(!!savedSimId)
 
   // Auto-start bots the moment 9:00 hits (once per page session)
+  // retryCount 변경 시에도 재실행되어 재시도가 동작함
   useEffect(() => {
     if (!isOpen) return
     if (autoStartedRef.current) return
@@ -80,7 +82,7 @@ export default function RegistrationPage() {
         autoStartedRef.current = false
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen])
+  }, [isOpen, retryCount])
 
   const missionCourse = {
     id: courseId,
@@ -208,6 +210,7 @@ export default function RegistrationPage() {
               autoStartedRef.current = false
               setCurrentSimId(null)
               sessionStorage.removeItem('aquarush_simId')
+              setRetryCount(c => c + 1)
             }}>재시도</button>
           </div>
         )}
