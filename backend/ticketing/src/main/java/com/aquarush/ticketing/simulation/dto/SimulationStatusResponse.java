@@ -37,6 +37,9 @@ public class SimulationStatusResponse {
     @Schema(description = "예약 실패 수")
     private Integer failCount;
 
+    @Schema(description = "총 정원")
+    private Integer totalSeats;
+
     @Schema(description = "남은 좌석")
     private Integer remainingSeats;
 

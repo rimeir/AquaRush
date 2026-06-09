@@ -276,6 +276,7 @@ public class SimulationService {
                 .totalParticipants(botCount + 1)
                 .successCount(successCount)
                 .failCount(failCount)
+                .totalSeats(course.getMaxCapacity())
                 .remainingSeats(remainingSeats)
                 .queueLength(queueLength != null ? queueLength : 0L)
                 .myRank(myRank)
