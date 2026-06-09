@@ -385,3 +385,44 @@ redisTemplate.opsForHash().increment(simKey, "failCount", 1L);     // 실패/예
 ```
 
 `SimulationScheduler`가 1초마다 해당 키를 읽어 SSE로 브로드캐스트하는 기존 흐름 유지.
+
+---
+
+---
+
+## 슬라이딩 윈도우 기반 유량제어로 교체 (이슈 #16)
+
+### 배경
+
+기존 구현은 `INCR` + TTL을 사용하는 **고정 윈도우 카운터**였습니다. 윈도우 경계에서 최대 2배 요청이 통과되는 boundary attack 취약점이 있었고, 포트폴리오 설명("슬라이딩 윈도우")과 실제 코드가 불일치했습니다.
+
+**boundary attack 예시:**
+- 00:59에 5번 요청 → 통과 (윈도우 1의 마지막)
+- 01:01에 5번 요청 → 통과 (윈도우 2의 시작)
+- 결과: 2초 안에 10번 통과
+
+### 변경 내용
+
+#### `RateLimiterService.java`
+
+Redis Sorted Set + Lua 스크립트로 교체. 요청 시각(ms)을 score로 저장하고 "지금 기준 과거 60초"를 항상 새로 계산합니다.
+
+```
+요청 들어옴
+  └─ ZREMRANGEBYSCORE: 윈도우 밖(60초 이전) 항목 제거
+  └─ ZCARD: 현재 윈도우 내 요청 수 확인
+  └─ count < limit → ZADD로 현재 요청 추가 → 허용
+  └─ count >= limit → 거부 (429)
+```
+
+Lua 스크립트로 세 연산을 원자적으로 처리해 race condition 방지.
+
+`StringRedisTemplate` 사용: 기존 `RedisTemplate<String, Object>`는 Jackson 직렬화로 Lua ARGV가 JSON 문자열로 변환되는 문제가 있어 교체.
+
+#### `RateLimitInterceptor.java`
+
+`getRemainingRequests`, `getTimeUntilReset` 메서드에 `windowSeconds` 파라미터 추가.
+
+`getTimeUntilReset`의 의미 변경:
+- 고정 윈도우: TTL (윈도우 전체 리셋까지 남은 시간)
+- 슬라이딩 윈도우: 가장 오래된 요청이 윈도우 밖으로 나갈 때까지 남은 시간 (`ZRANGE key 0 0 WITHSCORES`로 조회)
