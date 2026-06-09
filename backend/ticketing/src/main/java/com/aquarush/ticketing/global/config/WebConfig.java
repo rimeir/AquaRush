@@ -25,11 +25,13 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor)
-                .addPathPatterns("/api/**")          // API 경로에만 적용
+                .addPathPatterns("/api/**")
                 .excludePathPatterns(
-                        "/api/health",               // 헬스체크 제외
-                        "/api/swagger-ui/**",        // Swagger 제외
-                        "/api/v3/api-docs/**"        // API 문서 제외
+                        "/api/health",
+                        "/api/swagger-ui/**",
+                        "/api/v3/api-docs/**",
+                        "/api/v1/simulation/status/**",  // 모니터링 조회 제외
+                        "/api/v1/simulation/live/**"     // SSE 스트림 제외
                 );
     }
 }
