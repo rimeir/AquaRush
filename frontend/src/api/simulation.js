@@ -26,6 +26,9 @@ export const getCategories = () =>
 export const getCourses = (params = {}) =>
   api.get('/courses/search', { params }).then(r => r.data.data)
 
+export const reserveForUser = (simulationId) =>
+  api.post(`/simulation/${simulationId}/reserve`).then(r => r.data.data)
+
 export const createSseConnection = (simulationId, onMessage, onComplete, onError) => {
   const es = new EventSource(`/api/v1/simulation/live/${simulationId}`)
 

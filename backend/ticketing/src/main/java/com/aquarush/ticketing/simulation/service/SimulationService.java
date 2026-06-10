@@ -2,9 +2,12 @@ package com.aquarush.ticketing.simulation.service;
 
 import com.aquarush.ticketing.course.entity.Course;
 import com.aquarush.ticketing.course.repository.CourseRepository;
+import com.aquarush.ticketing.reservation.dto.ReservationCreateRequest;
 import com.aquarush.ticketing.reservation.entity.Reservation;
 import com.aquarush.ticketing.reservation.repository.ReservationRepository;
+import com.aquarush.ticketing.reservation.service.ReservationService;
 import com.aquarush.ticketing.simulation.dto.SimulationStatusResponse;
+import com.aquarush.ticketing.simulation.dto.UserReserveResponse;
 import com.aquarush.ticketing.simulation.entity.VirtualUser;
 import com.aquarush.ticketing.waitingqueue.service.WaitingQueueService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +40,7 @@ public class SimulationService {
 
     private final CourseRepository courseRepository;
     private final ReservationRepository reservationRepository;
+    private final ReservationService reservationService;
     private final BotService botService;
     private final VirtualUserService virtualUserService;
     private final WaitingQueueService waitingQueueService;
@@ -68,8 +72,6 @@ public class SimulationService {
         redisTemplate.opsForHash().put(key, "failCount", 0L);
         redisTemplate.opsForHash().put(key, "totalAttempts", 0L);
 
-        // 유저를 대기열에 자동 진입
-        waitingQueueService.enterQueue(user.getSessionId(), courseId);
         log.info("✅ 시뮬레이션 생성: id={}, courseId={}, botCount={}, userSessionId={}",
                 simulationId, courseId, bots.size(), user.getSessionId());
 
@@ -382,6 +384,81 @@ public class SimulationService {
 
         log.info("시뮬레이션 종료: id={}", simulationId);
         return getStatus(simulationId);
+    }
+
+    /**
+     * 사용자 수동 예약 (결제 시점에 호출)
+     * @Transactional 미사용 — createReservation이 IllegalStateException을 throw할 때
+     * 공유 트랜잭션이 rollback-only로 마킹되어 UnexpectedRollbackException 발생하는 문제 방지
+     */
+    public UserReserveResponse reserveForUser(String simulationId) {
+        String key = "simulation:" + simulationId;
+
+        Object courseIdObj = redisTemplate.opsForHash().get(key, "courseId");
+        if (courseIdObj == null) {
+            throw new IllegalArgumentException("시뮬레이션을 찾을 수 없습니다: " + simulationId);
+        }
+
+        Long courseId = Long.parseLong(courseIdObj.toString());
+        Long userDbId = Long.parseLong(redisTemplate.opsForHash().get(key, "userDbId").toString());
+        String nickname = redisTemplate.opsForHash().get(key, "nickname").toString();
+        int botCount = Integer.parseInt(redisTemplate.opsForHash().get(key, "botCount").toString());
+        Object scObj = redisTemplate.opsForHash().get(key, "successCount");
+        Object fcObj = redisTemplate.opsForHash().get(key, "failCount");
+        int successCount = scObj != null ? Integer.parseInt(scObj.toString()) : 0;
+        int failCount = fcObj != null ? Integer.parseInt(fcObj.toString()) : 0;
+
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new IllegalArgumentException("강좌를 찾을 수 없습니다: " + courseId));
+
+        // 이미 예약된 경우
+        if (reservationRepository.existsActiveByCourseIdAndUserId(courseId, userDbId)) {
+            long before = reservationRepository.countReservationsBeforeUser(courseId, userDbId);
+            return UserReserveResponse.builder()
+                    .reserved(true)
+                    .myPosition((int) before + 1)
+                    .courseName(course.getName())
+                    .totalParticipants(botCount + 1)
+                    .successCount(successCount)
+                    .failCount(failCount)
+                    .build();
+        }
+
+        // 대기열 없이 직접 예약 시도 (sessionId=null → queue 생략)
+        ReservationCreateRequest request = ReservationCreateRequest.builder()
+                .courseId(courseId)
+                .userId(userDbId)
+                .userName(nickname)
+                .userPhone("010-0000-0000")
+                .sessionId(null)
+                .build();
+
+        try {
+            reservationService.createReservation(request);
+            long before = reservationRepository.countReservationsBeforeUser(courseId, userDbId);
+            log.info("✅ 유저 예약 성공: simulationId={}, position={}", simulationId, before + 1);
+            return UserReserveResponse.builder()
+                    .reserved(true)
+                    .myPosition((int) before + 1)
+                    .courseName(course.getName())
+                    .totalParticipants(botCount + 1)
+                    .successCount(successCount + 1)
+                    .failCount(failCount)
+                    .build();
+        } catch (IllegalStateException e) {
+            String msg = e.getMessage();
+            String reason = (msg.contains("정원") || msg.contains("마감") || msg.contains("예약할 수 없는"))
+                    ? "인원이 마감되었습니다." : msg;
+            log.info("❌ 유저 예약 실패: simulationId={}, reason={}", simulationId, reason);
+            return UserReserveResponse.builder()
+                    .reserved(false)
+                    .failReason(reason)
+                    .courseName(course.getName())
+                    .totalParticipants(botCount + 1)
+                    .successCount(successCount)
+                    .failCount(failCount + 1)
+                    .build();
+        }
     }
 
     /**

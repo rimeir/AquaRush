@@ -27,17 +27,21 @@
 
 ## 스크린샷
 
-| 시작 페이지 (난이도·정원 설정) | 수강신청 (카운트다운 + 단계별 필터) |
+| 시작 페이지 (수영장 배경 + 난이도 설정) | 수강신청 (카운트다운) |
 |---|---|
 | ![시작](frontend/docs/screenshots/01_start_page.png) | ![카운트다운](frontend/docs/screenshots/03_registration_countdown.png) |
 
-| 강좌 목록 (90개 강좌) | 접속 유량제어 (새로고침 시) |
+| 접속 유량제어 (9시 이후 새로고침 시) | 강좌 목록 (시뮬레이션 진행 중) |
 |---|---|
-| ![목록](frontend/docs/screenshots/05_registration_active.png) | ![유량제어](frontend/docs/screenshots/04_access_queue_overlay.png) |
+| ![유량제어](frontend/docs/screenshots/04_access_queue_overlay.png) | ![목록](frontend/docs/screenshots/05_registration_active.png) |
 
-| 예약 대기열 (실시간) | 결과 — 성공 |
+| 장바구니 | 결제 |
 |---|---|
-| ![대기열](frontend/docs/screenshots/06_queue_modal_waiting.png) | ![성공](frontend/docs/screenshots/08_result_success.png) |
+| ![장바구니](frontend/docs/screenshots/10_cart_page.png) | ![결제](frontend/docs/screenshots/11_checkout_page.png) |
+
+| 결과 — 성공 | 결과 — 실패 |
+|---|---|
+| ![성공](frontend/docs/screenshots/08_result_success.png) | ![실패](frontend/docs/screenshots/09_result_fail.png) |
 
 ---
 
@@ -132,10 +136,11 @@ tryReservationWithRetry(courseId, bot, attempts, stopFlag)
 
 ### 6. 프론트엔드 UX — 실제 수강신청 사이트 재현
 
+- **수영장 배경**: StartPage에 위에서 내려다본 수영장 뷰 — 레인 로프, T-라인, 수영하는 사람들의 CSS 애니메이션
 - **`openOnMount` 패턴**: 컴포넌트 마운트 시점 기준으로 "9시 이후 새로고침"과 "같은 세션에서 9시 도달"을 구분
-- **접속 유량제어 오버레이**: 새로고침 시 500~2500 순번에서 0까지 5초 카운트다운 — 실제 대학교/공공기관 수강신청 사이트의 대기 팝업 재현
+- **접속 유량제어 오버레이**: 새로고침 시 봇 수 기반 순번에서 0까지 5초 카운트다운 — 실제 대학교/공공기관 수강신청 사이트의 대기 팝업 재현
 - **자동 봇 시작**: 9시가 되는 순간 `startSimulation` 자동 호출 — 버튼 클릭 불필요
-- **버튼 활성화 조건**: 9시 이후 + 새로고침 + 유량제어 통과의 3단계를 모두 만족해야 활성화
+- **장바구니 → 결제 → 결과 플로우**: 미션 강좌를 찾아 장바구니에 담고 결제하면 `POST /reserve` 실제 예약 API 호출, 정원 초과 시 실패 사유 표시
 
 ---
 
@@ -159,7 +164,7 @@ AquaRush/
 ├── frontend/
 │   └── src/
 │       ├── pages/              StartPage, RegistrationPage, ResultPage, CartPage, CheckoutPage
-│       ├── components/         AquaHeader, QueueModal, AccessQueueOverlay, StatCard, QueueBar
+│       ├── components/         AquaHeader, AccessQueueOverlay, PoolBackground, StatCard, QueueBar
 │       ├── hooks/              useVirtualClock
 │       └── api/                simulation.js (API 클라이언트)
 │

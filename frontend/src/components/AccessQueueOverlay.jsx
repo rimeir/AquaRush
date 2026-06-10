@@ -3,8 +3,8 @@ import './AccessQueueOverlay.css'
 
 const DURATION = 5000
 
-export default function AccessQueueOverlay({ onComplete }) {
-  const initialPos = useRef(Math.floor(Math.random() * 2500) + 500)
+export default function AccessQueueOverlay({ botCount = 500, onComplete }) {
+  const initialPos = useRef(botCount + Math.floor(Math.random() * Math.ceil(botCount * 0.2)))
   const [position, setPosition] = useState(initialPos.current)
   const [progress, setProgress] = useState(0)
   const startRef = useRef(Date.now())

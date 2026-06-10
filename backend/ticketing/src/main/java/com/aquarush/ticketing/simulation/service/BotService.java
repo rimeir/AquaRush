@@ -3,6 +3,7 @@ package com.aquarush.ticketing.simulation.service;
 import com.aquarush.ticketing.reservation.dto.ReservationCreateRequest;
 import com.aquarush.ticketing.reservation.service.ReservationService;
 import com.aquarush.ticketing.simulation.entity.VirtualUser;
+import com.aquarush.ticketing.waitingqueue.service.WaitingQueueService;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,6 +39,7 @@ public class BotService {
 
     private final VirtualUserService virtualUserService;
     private final ReservationService reservationService;
+    private final WaitingQueueService waitingQueueService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     private static final int MAX_RETRY_ATTEMPTS = 5;
@@ -101,6 +103,13 @@ public class BotService {
         AtomicInteger successCount = new AtomicInteger(0);
         AtomicInteger failCount = new AtomicInteger(0);
         AtomicInteger totalAttempts = new AtomicInteger(0);
+
+        // 유저 포함 전체 참가자를 스레드 시작 전에 동시에 대기열 진입
+        // → 모두 비슷한 timestamp를 가져 공정한 순위 경쟁
+        for (VirtualUser participant : bots) {
+            waitingQueueService.enterQueue(participant.getSessionId(), courseId);
+        }
+        log.info("✅ 전체 참가자 대기열 진입 완료: {}명", bots.size());
 
         int threadPoolSize = Math.min(bots.size(), 100);
         ExecutorService executor = Executors.newFixedThreadPool(threadPoolSize);
@@ -195,6 +204,11 @@ public class BotService {
      * - 대기열에서 순서가 되면 성공
      * - 정원이 다 차면 실패
      */
+    private void removeFromQueueSilently(String sessionId, Long courseId) {
+        try { waitingQueueService.removeFromQueue(sessionId, courseId); }
+        catch (Exception e) { log.warn("대기열 제거 실패 (무시): sessionId={}", sessionId); }
+    }
+
     private boolean tryReservationWithRetry(
             Long courseId,
             VirtualUser bot,
@@ -228,17 +242,20 @@ public class BotService {
                 // 예약 불가능한 상태 처리
                 String errorMessage = e.getMessage();
 
-                // 정원 초과 또는 예약 불가 → 즉시 실패
+                // 정원 초과 또는 예약 불가 → 대기열 제거 후 즉시 실패
                 if (errorMessage.contains("정원") ||
                         errorMessage.contains("마감") ||
-                        errorMessage.contains("불가")) {
+                        errorMessage.contains("불가") ||
+                        errorMessage.contains("예약할 수 없는")) {
 
+                    removeFromQueueSilently(bot.getSessionId(), courseId);
                     log.debug("⛔ 봇 예약 불가 (정원 초과): {}", bot.getNickname());
                     return false;
                 }
 
-                // 중복 예약 → 즉시 실패
+                // 중복 예약 → 대기열 제거 후 즉시 실패
                 if (errorMessage.contains("이미") || errorMessage.contains("중복")) {
+                    removeFromQueueSilently(bot.getSessionId(), courseId);
                     log.debug("⛔ 봇 예약 불가 (중복): {}", bot.getNickname());
                     return false;
                 }
