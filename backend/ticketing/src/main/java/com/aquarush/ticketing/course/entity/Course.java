@@ -134,6 +134,12 @@ public class Course {
         this.status = CourseStatus.ACTIVE;
     }
 
+    public void setupForSimulation(int maxCapacity, int remainingSeats) {
+        this.maxCapacity = maxCapacity;
+        this.currentCapacity = Math.max(0, maxCapacity - remainingSeats);
+        this.status = CourseStatus.ACTIVE;
+    }
+
     public void changeStatus(CourseStatus newStatus) {
         this.status = newStatus;
     }

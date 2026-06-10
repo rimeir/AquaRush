@@ -8,7 +8,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
@@ -42,12 +41,6 @@ public class ReservationDetailResponse {
 
     @Schema(description = "시간")
     private String timeSlot;
-
-    @Schema(description = "강좌 시작일")
-    private LocalDate startDate;
-
-    @Schema(description = "강좌 종료일")
-    private LocalDate endDate;
 
     @Schema(description = "가격")
     private Integer price;
@@ -91,8 +84,6 @@ public class ReservationDetailResponse {
                 .instructor(reservation.getCourse().getInstructor())
                 .weekdays(reservation.getCourse().getWeekdays())
                 .timeSlot(reservation.getCourse().getTimeSlot())
-                .startDate(reservation.getCourse().getStartDate())
-                .endDate(reservation.getCourse().getEndDate())
                 .price(reservation.getCourse().getPrice())
                 .userId(reservation.getUserId())
                 .userName(reservation.getUserName())
