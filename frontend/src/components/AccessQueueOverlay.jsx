@@ -4,7 +4,8 @@ import './AccessQueueOverlay.css'
 const DURATION = 5000
 
 export default function AccessQueueOverlay({ botCount = 500, onComplete }) {
-  const initialPos = useRef(botCount + Math.floor(Math.random() * Math.ceil(botCount * 0.2)))
+  // 봇 외 일반 접속자까지 포함한 현실적인 대기 순번 (botCount의 8~12배)
+  const initialPos = useRef(botCount * 8 + Math.floor(Math.random() * botCount * 4))
   const [position, setPosition] = useState(initialPos.current)
   const [progress, setProgress] = useState(0)
   const startRef = useRef(Date.now())
