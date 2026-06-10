@@ -30,6 +30,7 @@ function metaFromCourseDetail(course) {
     level: course.level,
     targetAudience: course.targetAudience,
     capacity: course.capacity?.max,
+    price: course.price,
   }
 }
 
@@ -119,9 +120,13 @@ export default function RegistrationPage() {
           capacity: data.totalSeats || 20,
         }
         sessionStorage.setItem('aquarush_simId', sid)
-        sessionStorage.setItem('aquarush_meta', JSON.stringify(meta))
         setCurrentSimId(sid)
-        setMissionMeta(meta)
+        // price는 getCourseDetail에서 받아온 값 유지 (startSimulation 응답엔 price 없음)
+        setMissionMeta(prev => {
+          const merged = { ...meta, price: prev?.price }
+          sessionStorage.setItem('aquarush_meta', JSON.stringify(merged))
+          return merged
+        })
         setStarting(false)
         setCourseRefreshTrigger(prev => prev + 1)
       })
@@ -144,6 +149,7 @@ export default function RegistrationPage() {
   const handleMissionClick = () => {
     if (!canInteract || !missionMeta) return
     if (cart.find(c => c.id === courseId)) { showToast('이미 장바구니에 있는 강좌입니다.'); return }
+    const missionInList = courses.find(c => c.id === courseId)
     const course = {
       id: courseId,
       center: missionMeta.centerName || '',
@@ -151,17 +157,27 @@ export default function RegistrationPage() {
       name: missionMeta.name || '',
       time: `${missionMeta.weekdays || ''} ${missionMeta.timeSlot || ''}`.trim(),
       target: missionMeta.targetAudience || '',
-      price: 0,
+      price: missionInList?.price ?? missionMeta.price ?? 0,
     }
     setCart(prev => [...prev, course])
     showToast('미션 강좌를 장바구니에 추가했습니다!')
   }
 
+  const normalizeCartItem = (c) => ({
+    id: c.id,
+    center: c.centerName || c.center || '',
+    name: c.courseName || c.name || '',
+    time: c.timeSlot ? `${c.weekdays || ''} ${c.timeSlot}`.trim() : (c.time || ''),
+    target: c.targetAudience || c.target || '',
+    category: c.categoryName || c.category || '',
+    price: c.price ?? 0,
+  })
+
   const handleCartClick = (course) => {
     if (!canInteract) return
     if (!course.isAvailable) return
     if (cart.find(c => c.id === course.id)) { showToast('이미 장바구니에 있는 강좌입니다.'); return }
-    setCart(prev => [...prev, course])
+    setCart(prev => [...prev, normalizeCartItem(course)])
     showToast('장바구니에 추가되었습니다!')
   }
 
