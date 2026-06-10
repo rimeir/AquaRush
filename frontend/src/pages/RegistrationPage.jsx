@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AquaHeader from '../components/AquaHeader'
+import AccessQueueOverlay from '../components/AccessQueueOverlay'
 import { useVirtualClock } from '../hooks/useVirtualClock'
 import { startSimulation, getCenters, getCategories, getCourses, getCourseDetail } from '../api/simulation'
 import './RegistrationPage.css'
@@ -45,6 +46,8 @@ export default function RegistrationPage() {
   const savedSimId = sessionStorage.getItem('aquarush_simId')
   const [currentSimId, setCurrentSimId] = useState(savedSimId)
   const [missionMeta, setMissionMeta] = useState(loadMeta())
+
+  const [accessGranted, setAccessGranted] = useState(false)
 
   const [courseRefreshTrigger, setCourseRefreshTrigger] = useState(0)
   const [cart, setCart] = useState([])
@@ -135,7 +138,8 @@ export default function RegistrationPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
-  const canInteract = isOpen && !starting && !!currentSimId
+  const showAccessQueue = openOnMount && !accessGranted
+  const canInteract = isOpen && accessGranted && !starting && !!currentSimId
 
   const handleMissionClick = () => {
     if (!canInteract || !missionMeta) return
@@ -170,6 +174,10 @@ export default function RegistrationPage() {
 
   return (
     <>
+      {showAccessQueue && (
+        <AccessQueueOverlay botCount={botCount} onComplete={() => setAccessGranted(true)} />
+      )}
+
       <AquaHeader step={0} cartCount={cart.length} onCartClick={goToCart} />
 
       <div className="reg-container">
@@ -184,17 +192,8 @@ export default function RegistrationPage() {
             <div className="mission-header">
               <div>
                 <div className="mission-title">🎯 나의 미션 강좌</div>
-                <div className="mission-desc">아래 강좌를 찾아 신청 버튼을 눌러 경쟁에 참여하세요!</div>
+                <div className="mission-desc">아래 강좌를 찾아 <strong>장바구니</strong> 버튼을 눌러 경쟁에 참여하세요!</div>
               </div>
-              {isOpen && !startError && (
-                <button
-                  className="mission-apply-btn"
-                  disabled={!canInteract}
-                  onClick={handleMissionClick}
-                >
-                  {starting || !currentSimId ? '준비 중...' : '장바구니'}
-                </button>
-              )}
             </div>
             <div className="mission-items">
               <div className="mission-item"><span className="mission-label">강좌명</span><strong className="highlight">{missionMeta.name}</strong></div>
