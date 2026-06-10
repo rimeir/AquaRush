@@ -26,4 +26,13 @@ public class SimulationStartRequest {
     @Size(max = 50, message = "닉네임은 50자 이내로 입력해주세요.")
     @Schema(description = "닉네임 (선택)", example = "티켓팅마스터")
     private String nickname;
+
+    @Min(value = 1, message = "총 정원은 1 이상이어야 합니다.")
+    @Max(value = 1000, message = "총 정원은 1000 이하로 설정해주세요.")
+    @Schema(description = "시뮬레이션 총 정원 (기본값: 강좌 기본 정원)", example = "20")
+    private Integer totalSeats;
+
+    @Min(value = 1, message = "남은 좌석은 1 이상이어야 합니다.")
+    @Schema(description = "남은 예약 좌석 수 (기본값: 강좌 기본 정원)", example = "5")
+    private Integer remainingSeats;
 }
