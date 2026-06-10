@@ -68,8 +68,6 @@ public class SimulationService {
         redisTemplate.opsForHash().put(key, "failCount", 0L);
         redisTemplate.opsForHash().put(key, "totalAttempts", 0L);
 
-        // 유저를 대기열에 자동 진입
-        waitingQueueService.enterQueue(user.getSessionId(), courseId);
         log.info("✅ 시뮬레이션 생성: id={}, courseId={}, botCount={}, userSessionId={}",
                 simulationId, courseId, bots.size(), user.getSessionId());
 
