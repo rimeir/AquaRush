@@ -39,7 +39,7 @@ export default function RegistrationPage() {
   const navigate = useNavigate()
 
   const config = { ...loadConfig(), ...(location.state || {}) }
-  const { nickname, botCount = 100, courseId = 1 } = config
+  const { nickname, botCount = 100, courseId = 1, totalSeats, remainingSeats } = config
 
   const { isOpen, secondsUntilOpen } = useVirtualClock()
   const [openOnMount] = useState(() => isOpen)
@@ -51,6 +51,7 @@ export default function RegistrationPage() {
   // Bug fix: removed !!currentSimId — overlay shows immediately on refresh without waiting for sim start
   const [accessGranted, setAccessGranted] = useState(false)
 
+  const [courseRefreshTrigger, setCourseRefreshTrigger] = useState(0)
   const [cart, setCart] = useState([])
   const [toast, setToast] = useState('')
   const [queueTarget, setQueueTarget] = useState(null)
@@ -97,7 +98,8 @@ export default function RegistrationPage() {
       .then(data => setCourses(data.courses || []))
       .catch(() => setCourses([]))
       .finally(() => setCoursesLoading(false))
-  }, [selectedCenterId, selectedCategoryId, selectedLevel, selectedTarget])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCenterId, selectedCategoryId, selectedLevel, selectedTarget, courseRefreshTrigger])
 
   // Auto-start simulation when 09:00 hits
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function RegistrationPage() {
 
     setStarting(true)
     setStartError('')
-    startSimulation(courseId, botCount, nickname)
+    startSimulation(courseId, botCount, nickname, totalSeats, remainingSeats)
       .then(data => {
         const sid = data.simulationId
         const meta = {
@@ -124,6 +126,7 @@ export default function RegistrationPage() {
         setCurrentSimId(sid)
         setMissionMeta(meta)
         setStarting(false)
+        setCourseRefreshTrigger(prev => prev + 1)
       })
       .catch(() => {
         setStartError('시뮬레이션 시작에 실패했습니다. 잠시 후 다시 시도해주세요.')
@@ -180,13 +183,6 @@ export default function RegistrationPage() {
     })
   }
 
-  const missionBtnText = () => {
-    if (!isOpen) return `🔒 ${secondsUntilOpen}초`
-    if (!accessGranted) return '🔄 새로고침'
-    if (starting || !currentSimId) return '준비 중...'
-    return '신청하기'
-  }
-
   const showAccessQueue = openOnMount && !accessGranted
 
   return (
@@ -222,7 +218,6 @@ export default function RegistrationPage() {
               )}
             </div>
             <div className="mission-items">
-              <div className="mission-item"><span className="mission-label">참가자</span><strong>{nickname}</strong></div>
               <div className="mission-item"><span className="mission-label">강좌명</span><strong className="highlight">{missionMeta.name}</strong></div>
               {missionMeta.centerName && <div className="mission-item"><span className="mission-label">센터</span><strong>{missionMeta.centerName}</strong></div>}
               {missionMeta.weekdays && <div className="mission-item"><span className="mission-label">요일</span><strong>{missionMeta.weekdays}</strong></div>}
@@ -371,30 +366,30 @@ export default function RegistrationPage() {
                     const isMission = course.id === courseId
                     const isFull = !course.isAvailable
                     const inCart = !!cart.find(c => c.id === course.id)
+                    const missionFilled = isMission && totalSeats != null ? totalSeats - (remainingSeats ?? 0) : null
                     return (
-                      <tr key={course.id} className={isMission ? 'mission-row' : ''}>
+                      <tr key={course.id}>
                         <td>{course.centerName}</td>
                         <td>{course.categoryName}</td>
-                        <td>
-                          {course.courseName}
-                          {isMission && <span className="mission-badge">미션</span>}
-                        </td>
+                        <td>{course.courseName}</td>
                         <td>{course.weekdays}</td>
                         <td>{course.timeSlot}</td>
                         <td>{course.level}</td>
                         <td>{course.targetAudience}</td>
                         <td className={isFull ? 'status-full' : 'status-available'}>
-                          {course.currentCapacity}/{course.maxCapacity}
+                          {missionFilled != null
+                            ? `${missionFilled}/${totalSeats}`
+                            : `${course.currentCapacity}/${course.maxCapacity}`}
                         </td>
                         <td className="price">{course.price.toLocaleString()}원</td>
                         <td>
                           {isMission ? (
                             <button
-                              className={`add-cart-btn ${!accessGranted ? 'locked' : ''}`}
-                              disabled={!accessGranted || starting || !!queueTarget || !currentSimId}
+                              className={`add-cart-btn ${!accessGranted || !isOpen ? 'locked' : ''}`}
+                              disabled={!accessGranted || !isOpen || starting || !!queueTarget || !currentSimId}
                               onClick={handleMissionClick}
                             >
-                              {missionBtnText()}
+                              {!isOpen || !accessGranted ? '🔒' : starting || !currentSimId ? '준비 중...' : '신청하기'}
                             </button>
                           ) : (
                             <button

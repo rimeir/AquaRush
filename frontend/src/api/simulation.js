@@ -2,8 +2,8 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
-export const startSimulation = (courseId, botCount, nickname) =>
-  api.post('/simulation/start', { courseId, botCount, nickname }).then(r => r.data.data)
+export const startSimulation = (courseId, botCount, nickname, totalSeats, remainingSeats) =>
+  api.post('/simulation/start', { courseId, botCount, nickname, totalSeats, remainingSeats }).then(r => r.data.data)
 
 export const getStatus = (simulationId) =>
   api.get(`/simulation/status/${simulationId}`).then(r => r.data.data)
