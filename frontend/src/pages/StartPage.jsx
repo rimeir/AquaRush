@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getRandomCourse } from '../api/simulation'
+import PoolBackground from '../components/PoolBackground'
 import './StartPage.css'
 
 const PRESETS = [
@@ -57,6 +58,8 @@ export default function StartPage() {
   }
 
   return (
+    <>
+    <PoolBackground />
     <div className="start-page">
       <div className="aqua-logo">
         <h1>🏊 Aqua Rush</h1>
@@ -133,5 +136,6 @@ export default function StartPage() {
         </button>
       </div>
     </div>
+    </>
   )
 }

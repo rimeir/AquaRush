@@ -1,4 +1,6 @@
 .start-page {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -15,21 +17,24 @@
 .aqua-logo h1 {
   font-size: 3rem;
   font-weight: 700;
-  color: #1e90ff;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 60, 120, 0.5), 0 0 24px rgba(0, 100, 200, 0.4);
   margin-bottom: 4px;
 }
 
 .aqua-logo p {
   font-size: 1.1rem;
-  color: #0066cc;
+  color: rgba(255, 255, 255, 0.95);
   font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 60, 120, 0.4);
 }
 
 .start-card {
-  background: white;
-  border-radius: 15px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.91);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255,255,255,0.3);
   padding: 2rem;
   width: 100%;
   max-width: 480px;

@@ -1,0 +1,178 @@
+.pool-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    #c8ecf8 0%,
+    #a0ddf2 12%,
+    #6dcaed 28%,
+    #45b8e6 44%,
+    #30aee0 52%,
+    #45b8e6 62%,
+    #6dcaed 76%,
+    #a0ddf2 88%,
+    #c8ecf8 100%
+  );
+  overflow: hidden;
+}
+
+/* Diagonal shimmer lines — water surface refraction */
+.pool-texture {
+  position: absolute;
+  inset: -100px;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0px,
+    transparent 28px,
+    rgba(255, 255, 255, 0.06) 28px,
+    rgba(255, 255, 255, 0.06) 29px
+  );
+  animation: texture-drift 9s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes texture-drift {
+  0%   { transform: translateX(0) translateY(0); }
+  100% { transform: translateX(29px) translateY(29px); }
+}
+
+/* Caustic light patches */
+.caustic {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(200, 245, 255, 0.14) 45%,
+    transparent 70%
+  );
+  filter: blur(6px);
+  animation: caustic-float ease-in-out infinite alternate;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@keyframes caustic-float {
+  0%   { transform: translate(0, 0) scale(1);          opacity: 0.55; }
+  25%  { transform: translate(13px, -7px) scale(1.1);  opacity: 0.8;  }
+  50%  { transform: translate(-6px, 10px) scale(0.93); opacity: 0.45; }
+  75%  { transform: translate(9px, 5px) scale(1.14);   opacity: 0.7;  }
+  100% { transform: translate(-10px, -8px) scale(1.04); opacity: 0.35; }
+}
+
+/* Lane divider rope */
+.lane-rope {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Float buoys */
+.rope-float {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+
+.rf-a { background: radial-gradient(circle at 35% 35%, #42a5f5, #0d47a1); }  /* 파랑 */
+.rf-b { background: radial-gradient(circle at 35% 35%, #fff176, #f9a825); }  /* 노랑 */
+
+/* T-line — center of each lane */
+.t-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(10, 60, 180, 0.32);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* T crossbars at each end */
+.t-line::before,
+.t-line::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 22px;
+  background: rgba(10, 60, 180, 0.32);
+  top: -9.5px;
+}
+
+.t-line::before { left: 72px; }
+.t-line::after  { right: 72px; }
+
+/* Swimmer track */
+.swimmer-track {
+  position: absolute;
+  left: 0;
+  animation: swim-ping-pong linear infinite;
+  pointer-events: none;
+  will-change: transform;
+}
+
+@keyframes swim-ping-pong {
+  0%    { transform: translateY(-50%) translateX(-60px) scaleX(1); }
+  49.9% { transform: translateY(-50%) translateX(calc(100vw + 20px)) scaleX(1); }
+  50%   { transform: translateY(-50%) translateX(calc(100vw + 20px)) scaleX(-1); }
+  99.9% { transform: translateY(-50%) translateX(-60px) scaleX(-1); }
+  100%  { transform: translateY(-50%) translateX(-60px) scaleX(1); }
+}
+
+/* Swimmer shape */
+.swimmer {
+  position: relative;
+  width: 48px;
+  height: 18px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.swim-body {
+  position: absolute;
+  width: 30px;
+  height: 13px;
+  background: radial-gradient(ellipse at 40% 40%, #f5c892, #d4945a);
+  border-radius: 50%;
+  top: 2.5px;
+  left: 10px;
+}
+
+.swim-cap {
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  top: 0.5px;
+  right: 0;
+  z-index: 2;
+  box-shadow: inset 0 -2px 4px rgba(0,0,0,0.2), inset 0 1px 2px rgba(255,255,255,0.3);
+}
+
+.swim-wake {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 12px;
+  border-left: 2.5px solid rgba(255, 255, 255, 0.75);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: wake-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes wake-pulse {
+  from { opacity: 0.5; transform: translateY(-50%) scaleX(0.8); }
+  to   { opacity: 0.9; transform: translateY(-50%) scaleX(1.2); }
+}
