@@ -215,6 +215,13 @@ export default function RegistrationPage() {
           </div>
         )}
 
+        {isOpen && !openOnMount && !accessGranted && (
+          <div className="refresh-notice-box">
+            🔄 수강신청이 오픈되었습니다! 봇이 경쟁을 시작했습니다.{' '}
+            <strong>F5(새로고침)</strong>을 눌러 버튼을 활성화하세요.
+          </div>
+        )}
+
         {isOpen && canInteract && !startError && (
           <div className="open-box">
             ✅ 수강신청 오픈! 미션 강좌를 찾아 <strong>장바구니</strong> 버튼을 누르세요.
@@ -347,7 +354,7 @@ export default function RegistrationPage() {
                         <td>{course.timeSlot}</td>
                         <td>{course.level}</td>
                         <td>{course.targetAudience}</td>
-                        <td className={isFull ? 'status-full' : 'status-available'}>
+                        <td className={!isMission && isFull ? 'status-full' : 'status-available'}>
                           {missionFilled != null
                             ? `${missionFilled}/${totalSeats}`
                             : `${course.currentCapacity}/${course.maxCapacity}`}
