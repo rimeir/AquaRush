@@ -27,7 +27,7 @@
 
 ## 스크린샷
 
-| 시작 페이지 (수영장 배경 + 난이도 설정) | 수강신청 (카운트다운) |
+| 시작 페이지 (정원 + 난이도 설정) | 수강신청 (카운트다운) |
 |---|---|
 | ![시작](frontend/docs/screenshots/01_start_page.png) | ![카운트다운](frontend/docs/screenshots/03_registration_countdown.png) |
 
