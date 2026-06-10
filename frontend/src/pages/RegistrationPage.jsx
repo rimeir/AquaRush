@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import AquaHeader from '../components/AquaHeader'
-import QueueModal from '../components/QueueModal'
-import AccessQueueOverlay from '../components/AccessQueueOverlay'
 import { useVirtualClock } from '../hooks/useVirtualClock'
 import { startSimulation, getCenters, getCategories, getCourses, getCourseDetail } from '../api/simulation'
 import './RegistrationPage.css'
@@ -48,13 +46,9 @@ export default function RegistrationPage() {
   const [currentSimId, setCurrentSimId] = useState(savedSimId)
   const [missionMeta, setMissionMeta] = useState(loadMeta())
 
-  // Bug fix: removed !!currentSimId — overlay shows immediately on refresh without waiting for sim start
-  const [accessGranted, setAccessGranted] = useState(false)
-
   const [courseRefreshTrigger, setCourseRefreshTrigger] = useState(0)
   const [cart, setCart] = useState([])
   const [toast, setToast] = useState('')
-  const [queueTarget, setQueueTarget] = useState(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
   const [retryCount, setRetryCount] = useState(0)
@@ -141,39 +135,30 @@ export default function RegistrationPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
+  const canInteract = isOpen && !starting && !!currentSimId
+
   const handleMissionClick = () => {
-    if (!accessGranted || starting || !!queueTarget || !currentSimId || !missionMeta) return
-    setQueueTarget({
+    if (!canInteract || !missionMeta) return
+    if (cart.find(c => c.id === courseId)) { showToast('이미 장바구니에 있는 강좌입니다.'); return }
+    const course = {
       id: courseId,
       center: missionMeta.centerName || '',
       category: '수영',
       name: missionMeta.name || '',
       time: `${missionMeta.weekdays || ''} ${missionMeta.timeSlot || ''}`.trim(),
       target: missionMeta.targetAudience || '',
-      enrolled: 0,
-      capacity: missionMeta.capacity || 20,
       price: 0,
-    })
+    }
+    setCart(prev => [...prev, course])
+    showToast('미션 강좌를 장바구니에 추가했습니다!')
   }
 
   const handleCartClick = (course) => {
-    if (!accessGranted) return
+    if (!canInteract) return
     if (!course.isAvailable) return
     if (cart.find(c => c.id === course.id)) { showToast('이미 장바구니에 있는 강좌입니다.'); return }
     setCart(prev => [...prev, course])
     showToast('장바구니에 추가되었습니다!')
-  }
-
-  const handleQueueConfirm = (finalStatus) => {
-    const course = queueTarget
-    setQueueTarget(null)
-    if (finalStatus?.myReservationSuccess) {
-      navigate(`/cart/${currentSimId}`, {
-        state: { nickname, botCount, courseId, simulationId: currentSimId, cart: [...cart, course], finalStatus },
-      })
-    } else {
-      navigate(`/result/${currentSimId}`, { state: { status: finalStatus } })
-    }
   }
 
   const goToCart = () => {
@@ -183,14 +168,8 @@ export default function RegistrationPage() {
     })
   }
 
-  const showAccessQueue = openOnMount && !accessGranted
-
   return (
     <>
-      {showAccessQueue && (
-        <AccessQueueOverlay onComplete={() => setAccessGranted(true)} />
-      )}
-
       <AquaHeader step={0} cartCount={cart.length} onCartClick={goToCart} />
 
       <div className="reg-container">
@@ -207,13 +186,13 @@ export default function RegistrationPage() {
                 <div className="mission-title">🎯 나의 미션 강좌</div>
                 <div className="mission-desc">아래 강좌를 찾아 신청 버튼을 눌러 경쟁에 참여하세요!</div>
               </div>
-              {isOpen && accessGranted && !startError && (
+              {isOpen && !startError && (
                 <button
                   className="mission-apply-btn"
-                  disabled={starting || !!queueTarget || !currentSimId}
+                  disabled={!canInteract}
                   onClick={handleMissionClick}
                 >
-                  {starting || !currentSimId ? '준비 중...' : '신청하기'}
+                  {starting || !currentSimId ? '준비 중...' : '장바구니'}
                 </button>
               )}
             </div>
@@ -237,16 +216,9 @@ export default function RegistrationPage() {
           </div>
         )}
 
-        {isOpen && !openOnMount && !accessGranted && (
-          <div className="refresh-notice-box">
-            🔄 수강신청이 오픈되었습니다! 봇이 경쟁을 시작했습니다.{' '}
-            <strong>F5(새로고침)</strong>을 눌러 버튼을 활성화하세요.
-          </div>
-        )}
-
-        {isOpen && accessGranted && !startError && (
+        {isOpen && canInteract && !startError && (
           <div className="open-box">
-            ✅ 접속 완료! 강좌 목록에서 미션 강좌를 찾아 <strong>신청하기</strong> 버튼을 누르세요.
+            ✅ 수강신청 오픈! 미션 강좌를 찾아 <strong>장바구니</strong> 버튼을 누르세요.
           </div>
         )}
 
@@ -385,19 +357,19 @@ export default function RegistrationPage() {
                         <td>
                           {isMission ? (
                             <button
-                              className={`add-cart-btn ${!accessGranted || !isOpen ? 'locked' : ''}`}
-                              disabled={!accessGranted || !isOpen || starting || !!queueTarget || !currentSimId}
+                              className={`add-cart-btn ${!canInteract ? 'locked' : ''}`}
+                              disabled={!canInteract}
                               onClick={handleMissionClick}
                             >
-                              {!isOpen || !accessGranted ? '🔒' : starting || !currentSimId ? '준비 중...' : '신청하기'}
+                              {!isOpen ? '🔒' : starting || !currentSimId ? '준비 중...' : inCart ? '담김 ✓' : '장바구니'}
                             </button>
                           ) : (
                             <button
-                              className={`add-cart-btn ${!accessGranted || isFull ? 'locked' : ''}`}
-                              disabled={!accessGranted || isFull || inCart}
+                              className={`add-cart-btn ${!canInteract || isFull ? 'locked' : ''}`}
+                              disabled={!canInteract || isFull || inCart}
                               onClick={() => handleCartClick(course)}
                             >
-                              {isFull ? '마감' : inCart ? '담김 ✓' : !accessGranted ? '🔒' : '장바구니'}
+                              {isFull ? '마감' : inCart ? '담김 ✓' : !isOpen ? '🔒' : '장바구니'}
                             </button>
                           )}
                         </td>
@@ -410,15 +382,6 @@ export default function RegistrationPage() {
           )}
         </div>
       </div>
-
-      {queueTarget && currentSimId && (
-        <QueueModal
-          simulationId={currentSimId}
-          course={queueTarget}
-          onConfirm={handleQueueConfirm}
-          onClose={() => {}}
-        />
-      )}
 
       {toast && <div className="toast show">{toast}</div>}
     </>
