@@ -22,6 +22,21 @@ public class SimulationStatusResponse {
     @Schema(description = "강좌명")
     private String courseName;
 
+    @Schema(description = "센터명")
+    private String centerName;
+
+    @Schema(description = "요일")
+    private String weekdays;
+
+    @Schema(description = "시간대")
+    private String timeSlot;
+
+    @Schema(description = "소분류 (난이도)")
+    private String level;
+
+    @Schema(description = "교육 대상")
+    private String targetAudience;
+
     @Schema(description = "내 닉네임")
     private String myNickname;
 

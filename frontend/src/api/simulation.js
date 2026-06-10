@@ -11,8 +11,20 @@ export const getStatus = (simulationId) =>
 export const stopSimulation = (simulationId) =>
   api.post('/simulation/stop', { simulationId }).then(r => r.data.data)
 
-export const getCourses = () =>
-  api.get('/courses/search').then(r => r.data.data)
+export const getRandomCourse = () =>
+  api.get('/courses/random').then(r => r.data.data)
+
+export const getCourseDetail = (courseId) =>
+  api.get(`/courses/${courseId}`).then(r => r.data.data)
+
+export const getCenters = () =>
+  api.get('/centers').then(r => r.data.data)
+
+export const getCategories = () =>
+  api.get('/categories').then(r => r.data.data)
+
+export const getCourses = (params = {}) =>
+  api.get('/courses/search', { params }).then(r => r.data.data)
 
 export const createSseConnection = (simulationId, onMessage, onComplete, onError) => {
   const es = new EventSource(`/api/v1/simulation/live/${simulationId}`)

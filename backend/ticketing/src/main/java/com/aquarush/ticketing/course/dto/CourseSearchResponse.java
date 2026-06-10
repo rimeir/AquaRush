@@ -8,8 +8,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-
 @Getter
 @Builder
 @NoArgsConstructor
@@ -23,16 +21,16 @@ public class CourseSearchResponse {
     @Schema(description = "센터 ID", example = "1")
     private Long centerId;
 
-    @Schema(description = "센터명", example = "센터 A")
+    @Schema(description = "센터명", example = "고등어 스포츠센터")
     private String centerName;
 
     @Schema(description = "카테고리 ID", example = "1")
     private Long categoryId;
 
-    @Schema(description = "카테고리명", example = "초급")
+    @Schema(description = "카테고리명 (대분류)", example = "수영")
     private String categoryName;
 
-    @Schema(description = "강좌명", example = "초급 수영 강좌")
+    @Schema(description = "강좌명", example = "성인 자유수영 초급반")
     private String courseName;
 
     @Schema(description = "강사명", example = "김코치")
@@ -44,40 +42,31 @@ public class CourseSearchResponse {
     @Schema(description = "시간대", example = "14:00-15:00")
     private String timeSlot;
 
-    @Schema(description = "대상", example = "성인")
+    @Schema(description = "교육 대상", example = "성인")
     private String targetAudience;
 
-    @Schema(description = "가격", example = "150000")
+    @Schema(description = "소분류 (난이도)", example = "초급")
+    private String level;
+
+    @Schema(description = "가격", example = "80000")
     private Integer price;
 
-    @Schema(description = "현재 신청 인원", example = "15")
+    @Schema(description = "현재 신청 인원", example = "0")
     private Integer currentCapacity;
 
     @Schema(description = "최대 정원", example = "20")
     private Integer maxCapacity;
 
-    @Schema(description = "남은 자리", example = "5")
+    @Schema(description = "남은 자리", example = "20")
     private Integer availableSeats;
 
     @Schema(description = "신청 가능 여부", example = "true")
     private Boolean isAvailable;
 
-    @Schema(description = "시작일", example = "2025-11-01")
-    private LocalDate startDate;
-
-    @Schema(description = "종료일", example = "2025-11-30")
-    private LocalDate endDate;
-
     @Schema(description = "강좌 상태", example = "ACTIVE")
     private CourseStatus status;
 
-    /**
-     * Entity → DTO 변환
-     */
     public static CourseSearchResponse from(Course course) {
-        int availableSeats = course.getAvailableSeats();
-        boolean isAvailable = course.isAvailable();
-
         return CourseSearchResponse.builder()
                 .id(course.getId())
                 .centerId(course.getCenterId())
@@ -89,13 +78,12 @@ public class CourseSearchResponse {
                 .weekdays(course.getWeekdays())
                 .timeSlot(course.getTimeSlot())
                 .targetAudience(course.getTargetAudience())
+                .level(course.getLevel())
                 .price(course.getPrice())
                 .currentCapacity(course.getCurrentCapacity())
                 .maxCapacity(course.getMaxCapacity())
-                .availableSeats(availableSeats)
-                .isAvailable(isAvailable)
-                .startDate(course.getStartDate())
-                .endDate(course.getEndDate())
+                .availableSeats(course.getAvailableSeats())
+                .isAvailable(course.isAvailable())
                 .status(course.getStatus())
                 .build();
     }

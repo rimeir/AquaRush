@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getRandomCourse } from '../api/simulation'
 import './StartPage.css'
 
 const PRESETS = [
@@ -12,22 +13,29 @@ export default function StartPage() {
   const navigate = useNavigate()
   const [nickname, setNickname] = useState('')
   const [botCount, setBotCount] = useState(100)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!nickname.trim()) {
       setError('닉네임을 입력해주세요.')
       return
     }
     setError('')
-    // 이전 세션 데이터 초기화
-    sessionStorage.removeItem('virtualTime')
-    sessionStorage.removeItem('virtualStartReal')
-    sessionStorage.removeItem('aquarush_simId')
-    sessionStorage.removeItem('aquarush_meta')
-    // 설정 저장 (새로고침 시 복원용)
-    sessionStorage.setItem('aquarush_config', JSON.stringify({ nickname: nickname.trim(), botCount, courseId: 1 }))
-    navigate('/registration')
+    setLoading(true)
+    try {
+      const course = await getRandomCourse()
+      sessionStorage.removeItem('virtualTime')
+      sessionStorage.removeItem('virtualStartReal')
+      sessionStorage.removeItem('aquarush_simId')
+      sessionStorage.removeItem('aquarush_meta')
+      sessionStorage.setItem('aquarush_config', JSON.stringify({ nickname: nickname.trim(), botCount, courseId: course.id }))
+      navigate('/registration')
+    } catch {
+      setError('강좌 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -81,8 +89,8 @@ export default function StartPage() {
 
         {error && <p className="error-msg">{error}</p>}
 
-        <button className="start-btn" onClick={handleStart}>
-          티켓팅 시작하기
+        <button className="start-btn" onClick={handleStart} disabled={loading}>
+          {loading ? '강좌 배정 중...' : '티켓팅 시작하기'}
         </button>
       </div>
     </div>
