@@ -4,6 +4,7 @@ import com.aquarush.ticketing.global.dto.ApiResponse;
 import com.aquarush.ticketing.simulation.dto.SimulationStartRequest;
 import com.aquarush.ticketing.simulation.dto.SimulationStatusResponse;
 import com.aquarush.ticketing.simulation.dto.SimulationStopRequest;
+import com.aquarush.ticketing.simulation.dto.UserReserveResponse;
 import com.aquarush.ticketing.simulation.entity.VirtualUser;
 import com.aquarush.ticketing.simulation.service.BotService;
 import com.aquarush.ticketing.simulation.service.SimulationService;
@@ -17,7 +18,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -59,11 +59,8 @@ public class SimulationController {
                 request.getCourseId(), user, bots,
                 request.getTotalSeats(), request.getRemainingSeats());
 
-        // 4. 비동기로 봇 + 유저 예약 시도 시작 (유저를 맨 앞에 추가)
-        List<VirtualUser> participants = new ArrayList<>();
-        participants.add(user);
-        participants.addAll(bots);
-        simulationService.startBotSimulation(simulationId, request.getCourseId(), participants);
+        // 4. 비동기로 봇만 예약 경쟁 시작 (유저는 결제 시점에 직접 예약)
+        simulationService.startBotSimulation(simulationId, request.getCourseId(), bots);
 
         // 5. 현황 조회
         SimulationStatusResponse status = simulationService.getStatus(simulationId);
@@ -109,6 +106,20 @@ public class SimulationController {
         return ResponseEntity.ok(
                 ApiResponse.success(status, "시뮬레이션이 종료되었습니다.")
         );
+    }
+
+    /**
+     * 사용자 수동 예약 (결제 완료 시 호출)
+     */
+    @Operation(summary = "사용자 예약", description = "결제 완료 시 사용자가 직접 좌석을 예약합니다.")
+    @PostMapping("/{simulationId}/reserve")
+    public ResponseEntity<ApiResponse<UserReserveResponse>> reserveForUser(
+            @PathVariable String simulationId
+    ) {
+        log.info("POST /api/v1/simulation/{}/reserve", simulationId);
+        UserReserveResponse result = simulationService.reserveForUser(simulationId);
+        String message = result.isReserved() ? "예약 완료" : "예약 실패: " + result.getFailReason();
+        return ResponseEntity.ok(ApiResponse.success(result, message));
     }
 
     /**
