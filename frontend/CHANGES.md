@@ -114,3 +114,169 @@
 | 결과 페이지 (실패) | `docs/screenshots/09_result_fail.png` |
 | 장바구니 | `docs/screenshots/10_cart_page.png` |
 | 결제 확인 | `docs/screenshots/11_checkout_page.png` |
+
+---
+
+---
+
+## 수강신청 페이지 전면 재설계 (이슈 #22, PR #24)
+
+> 브랜치: `feature/#22-registration-page-redesign`
+
+### StartPage
+
+- 총 정원 / 남은 자리 직접 설정 UI 추가 (±버튼 + 입력)
+- 시뮬레이션 경쟁 조건을 유저가 직접 구성
+
+### RegistrationPage 전면 재작성
+
+**실제 API 연동**
+
+더미 데이터 제거. 센터·카테고리·강좌 목록을 백엔드 API에서 가져옴.
+
+```
+GET /api/v1/centers
+GET /api/v1/categories
+GET /api/v1/courses/search?centerId=&categoryId=&level=&targetAudience=
+GET /api/v1/courses/{id}        — 미션 강좌 메타 로드
+GET /api/v1/courses/random      — 시작 시 미션 강좌 배정
+```
+
+**단계별 필터 UI**
+
+| 필터 | 타입 | 선택지 |
+|---|---|---|
+| 체육센터 | 탭 | 전체 + 백엔드 센터 목록 |
+| 대분류 | 탭 | 전체 + 백엔드 카테고리 목록 |
+| 소분류 | 칩 | 전체 / 초급 / 중급 / 고급 |
+| 교육 대상 | 칩 | 전체 / 성인·청소년 / 어린이 |
+
+**미션 강좌 박스**
+
+- 시뮬레이션 시작 응답(`SimulationStatusResponse`)에서 강좌 메타 수신
+- 강좌명·센터·요일·시간·레벨·대상·정원 표시
+- 강좌 목록 테이블에서 미션 강좌 행 하이라이트
+
+### `api/simulation.js` 추가 함수
+
+| 함수 | 설명 |
+|---|---|
+| `getRandomCourse()` | 시작 시 미션 강좌 랜덤 배정 |
+| `getCenters()` | 센터 목록 조회 |
+| `getCategories()` | 카테고리 목록 조회 |
+| `getCourses(params)` | 강좌 검색 (필터 파라미터) |
+| `getCourseDetail(id)` | 강좌 상세 (가격 포함) |
+
+---
+
+---
+
+## AccessQueueOverlay 버그 수정 (이슈 #23)
+
+### 문제 1 — 초기 순번 하드코딩
+
+기존: 500~2500 고정 범위 → 봇 수와 무관하게 동일한 순번 표시.
+
+```jsx
+// 변경 전
+const initialPos = useRef(Math.floor(Math.random() * 2000) + 500)
+
+// 변경 후 — botCount 기반으로 ±20% 범위
+const initialPos = useRef(botCount + Math.floor(Math.random() * Math.ceil(botCount * 0.2)))
+```
+
+### 문제 2 — 시뮬레이션 시작 전 오버레이 미표시
+
+9시 이후 새로고침 시 시뮬레이션 ID가 아직 없으면 오버레이가 뜨지 않던 문제.
+
+```jsx
+// 변경 전
+const showAccessQueue = openOnMount && !!currentSimId && !accessGranted
+
+// 변경 후 — currentSimId 조건 제거
+const showAccessQueue = openOnMount && !accessGranted
+```
+
+---
+
+---
+
+## UX 전면 개편 — 장바구니 플로우 (이슈 #27, PR #28)
+
+> 브랜치: `feature/#27-ux-overhaul`
+
+### 변경 배경
+
+기존에는 수강신청 버튼 클릭 시 QueueModal(대기열 팝업)이 열리고 봇과 함께 자동 예약 처리되었습니다. 실제 수강신청 사이트처럼 **강좌 탐색 → 장바구니 담기 → 결제 → 결과** 플로우로 전환했습니다.
+
+### RegistrationPage
+
+- `QueueModal` 완전 제거
+- 모든 강좌(미션 포함) "장바구니" 버튼으로 통일
+- `normalizeCartItem()`: API 응답 필드명(`courseName`, `centerName`, `timeSlot`)을 카트 필드명(`name`, `center`, `time`)으로 정규화
+- 미션 강좌 정원 셀 항상 초록색 (시뮬레이션 초기화로 `isFull=true`가 되는 문제 해결)
+- 새로고침 안내 배너 복원 (`isOpen && !openOnMount && !accessGranted` 조건)
+- 가격 보존: `startSimulation` 응답 수신 시 `getCourseDetail`에서 받아온 `price` 유지
+
+### CheckoutPage
+
+- 실제 `POST /simulation/{id}/reserve` 호출
+- 미션 강좌가 없는 경우 즉시 실패 결과로 이동 (사유: "미션 강좌가 아닌 다른 강좌는 수강신청할 수 없습니다.")
+- `getElapsedSeconds()`: `virtualStartReal + 30000` 기준 소요 시간 계산
+
+### ResultPage 완전 재작성
+
+SSE 폴링 제거. `location.state`에서 직접 데이터 수신.
+
+| 항목 | 변경 전 | 변경 후 |
+|---|---|---|
+| 데이터 소스 | SSE + API 폴링 | `location.state` (CheckoutPage에서 전달) |
+| 성공 지표 | 성공률(%) | 소요 시간 (09:00 기준 초) |
+| 실패 표시 | 없음 | `failReason` 문자열 표시 |
+
+```jsx
+// state 구조
+{
+  reserved: boolean,
+  failReason: string | null,
+  courseName: string,
+  myPosition: number | null,
+  totalParticipants: number,
+  successCount: number,
+  failCount: number,
+  elapsedSeconds: number,
+}
+```
+
+### StartPage + PoolBackground (신규 컴포넌트)
+
+위에서 내려다본 수영장 배경 애니메이션. `<PoolBackground />`는 `.start-page` 외부에 렌더링 (z-index 분리).
+
+| 요소 | 구현 방식 |
+|---|---|
+| 수영장 물 | 하늘색 그라데이션 + 대각선 셔머 애니메이션 |
+| 코스틱 효과 | 10개 블러 타원이 각각 다른 속도로 부유 |
+| 레인 로프 | 7줄, 파랑/노랑 부표 `justify-content: space-around` |
+| T-라인 | 각 레인 중앙에 파란 선 + 양 끝 가로막대 (`::before`/`::after`) |
+| 수영 선수 | 6명, 다른 duration/delay로 `scaleX(-1)` 방향 전환 왕복 |
+
+카드: `backdrop-filter: blur(12px)` frosted glass 효과 적용.
+
+### `api/simulation.js`
+
+`reserveForUser(simulationId)` 추가.
+
+---
+
+## UI 스크린샷 (최신)
+
+| 화면 | 파일 |
+|---|---|
+| 시작 페이지 (수영장 배경) | `docs/screenshots/01_start_page.png` |
+| 수강신청 (카운트다운) | `docs/screenshots/03_registration_countdown.png` |
+| 접속 유량제어 오버레이 | `docs/screenshots/04_access_queue_overlay.png` |
+| 수강신청 (시뮬레이션 진행 중) | `docs/screenshots/05_registration_active.png` |
+| 장바구니 | `docs/screenshots/10_cart_page.png` |
+| 결제 | `docs/screenshots/11_checkout_page.png` |
+| 결과 (성공) | `docs/screenshots/08_result_success.png` |
+| 결과 (실패) | `docs/screenshots/09_result_fail.png` |
