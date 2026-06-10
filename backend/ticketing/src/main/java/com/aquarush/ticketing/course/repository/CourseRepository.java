@@ -42,7 +42,14 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             @Param("instructor") String instructor
     );
 
-    @Query(value = "SELECT * FROM courses WHERE status = 'ACTIVE' ORDER BY RAND() LIMIT 1", nativeQuery = true)
+    @Query(value = """
+            SELECT c.* FROM courses c
+            JOIN categories cat ON c.category_id = cat.id
+            WHERE c.status = 'ACTIVE'
+            AND cat.name = '수영'
+            AND c.target_audience = '성인/청소년'
+            ORDER BY RAND() LIMIT 1
+            """, nativeQuery = true)
     Optional<Course> findRandomActiveCourse();
 
     List<Course> findByCenterId(Long centerId);
