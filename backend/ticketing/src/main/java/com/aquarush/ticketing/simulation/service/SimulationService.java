@@ -388,8 +388,9 @@ public class SimulationService {
 
     /**
      * 사용자 수동 예약 (결제 시점에 호출)
+     * @Transactional 미사용 — createReservation이 IllegalStateException을 throw할 때
+     * 공유 트랜잭션이 rollback-only로 마킹되어 UnexpectedRollbackException 발생하는 문제 방지
      */
-    @Transactional
     public UserReserveResponse reserveForUser(String simulationId) {
         String key = "simulation:" + simulationId;
 

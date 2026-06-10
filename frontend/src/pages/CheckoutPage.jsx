@@ -21,6 +21,7 @@ export default function CheckoutPage() {
   const [payment, setPayment] = useState('card')
   const [agreed, setAgreed] = useState({ terms: false, privacy: false, refund: false })
   const [processing, setProcessing] = useState(false)
+  const [error, setError] = useState('')
 
   const total = cart.reduce((sum, c) => sum + c.price, 0)
   const allAgreed = agreed.terms && agreed.privacy && agreed.refund
@@ -69,8 +70,9 @@ export default function CheckoutPage() {
           elapsedSeconds,
         },
       })
-    } catch {
+    } catch (e) {
       setProcessing(false)
+      setError('결제 처리 중 오류가 발생했습니다. 다시 시도해주세요.')
     }
   }
 
@@ -135,6 +137,7 @@ export default function CheckoutPage() {
               <span>최종 결제금액</span>
               <span className="total-value">{total.toLocaleString()}원</span>
             </div>
+            {error && <p style={{ color: '#dc3545', fontSize: '0.9rem', marginBottom: '0.5rem' }}>{error}</p>}
             <button
               className="payment-btn"
               disabled={!allAgreed || processing}
