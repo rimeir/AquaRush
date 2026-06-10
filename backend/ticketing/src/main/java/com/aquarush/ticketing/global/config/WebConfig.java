@@ -30,8 +30,11 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/health",
                         "/api/swagger-ui/**",
                         "/api/v3/api-docs/**",
-                        "/api/v1/simulation/status/**",  // 모니터링 조회 제외
-                        "/api/v1/simulation/live/**"     // SSE 스트림 제외
+                        "/api/v1/simulation/status/**",
+                        "/api/v1/simulation/live/**",
+                        "/api/v1/centers/**",
+                        "/api/v1/categories/**",
+                        "/api/v1/courses/**"
                 );
     }
 }

@@ -49,11 +49,12 @@ public class SimulationService {
      * 시뮬레이션 생성 (강좌 자동 초기화 포함)
      */
     @Transactional
-    public String createSimulation(Long courseId, VirtualUser user, List<VirtualUser> bots) {
+    public String createSimulation(Long courseId, VirtualUser user, List<VirtualUser> bots,
+                                   Integer totalSeats, Integer remainingSeats) {
         String simulationId = UUID.randomUUID().toString();
 
         // ⭐ 시뮬레이션 시작 전 강좌 초기화
-        resetCourseForSimulation(courseId);
+        resetCourseForSimulation(courseId, totalSeats, remainingSeats);
 
         // Redis에 시뮬레이션 정보 저장
         String key = "simulation:" + simulationId;
@@ -75,42 +76,32 @@ public class SimulationService {
         return simulationId;
     }
 
-    /**
-     * ⭐ 강좌 초기화 (임시 해결 버전)
-     *
-     * TODO: 나중에 다음 메서드들을 추가하고 원래 코드로 복원
-     * - ReservationRepository.deleteByCourseId()
-     * - WaitingQueueService.clearQueue()
-     */
     @Transactional
-    public void resetCourseForSimulation(Long courseId) {
+    public void resetCourseForSimulation(Long courseId, Integer totalSeats, Integer remainingSeats) {
         try {
             log.info("🔄 시뮬레이션을 위한 강좌 초기화 시작: courseId={}", courseId);
 
-            // 1. 강좌 조회
             Course course = courseRepository.findById(courseId)
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "강좌를 찾을 수 없습니다: " + courseId));
+                    .orElseThrow(() -> new IllegalArgumentException("강좌를 찾을 수 없습니다: " + courseId));
 
-            // 2. ⭐ 기존 예약 삭제 (임시 방법)
-            // 원래: int deletedReservations = reservationRepository.deleteByCourseId(courseId);
             List<Reservation> reservations = reservationRepository.findByCourseId(courseId);
             if (!reservations.isEmpty()) {
                 reservationRepository.deleteAll(reservations);
                 log.info("📝 기존 예약 삭제: count={}", reservations.size());
-            } else {
-                log.info("📝 삭제할 예약 없음");
             }
 
-            // 3. 강좌 정원 초기화
-            course.resetCapacity();  // capacity = 0, status = ACTIVE
+            if (totalSeats != null && remainingSeats != null) {
+                course.setupForSimulation(totalSeats, remainingSeats);
+                log.info("✅ 사용자 설정 정원 적용: {}석 중 {}석 남음", totalSeats, remainingSeats);
+            } else {
+                course.resetCapacity();
+            }
             courseRepository.save(course);
 
-            // 4. 대기열 초기화
             waitingQueueService.clearQueue(courseId);
 
-            log.info("✅ 강좌 초기화 완료: courseId={}, capacity=0/{}",
-                    courseId, course.getMaxCapacity());
+            log.info("✅ 강좌 초기화 완료: courseId={}, capacity={}/{}", courseId,
+                    course.getCurrentCapacity(), course.getMaxCapacity());
 
         } catch (Exception e) {
             log.error("❌ 강좌 초기화 실패: courseId={}", courseId, e);
@@ -271,6 +262,11 @@ public class SimulationService {
                 .simulationId(simulationId)
                 .courseId(courseId)
                 .courseName(course.getName())
+                .centerName(course.getCenterName())
+                .weekdays(course.getWeekdays())
+                .timeSlot(course.getTimeSlot())
+                .level(course.getLevel())
+                .targetAudience(course.getTargetAudience())
                 .myNickname(nickname)
                 .status(status)
                 .totalParticipants(botCount + 1)

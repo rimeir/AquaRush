@@ -56,7 +56,8 @@ public class SimulationController {
 
         // 3. 시뮬레이션 세션 생성
         String simulationId = simulationService.createSimulation(
-                request.getCourseId(), user, bots);
+                request.getCourseId(), user, bots,
+                request.getTotalSeats(), request.getRemainingSeats());
 
         // 4. 비동기로 봇 + 유저 예약 시도 시작 (유저를 맨 앞에 추가)
         List<VirtualUser> participants = new ArrayList<>();

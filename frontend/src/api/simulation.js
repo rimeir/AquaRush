@@ -2,8 +2,8 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api/v1' })
 
-export const startSimulation = (courseId, botCount, nickname) =>
-  api.post('/simulation/start', { courseId, botCount, nickname }).then(r => r.data.data)
+export const startSimulation = (courseId, botCount, nickname, totalSeats, remainingSeats) =>
+  api.post('/simulation/start', { courseId, botCount, nickname, totalSeats, remainingSeats }).then(r => r.data.data)
 
 export const getStatus = (simulationId) =>
   api.get(`/simulation/status/${simulationId}`).then(r => r.data.data)
@@ -11,8 +11,20 @@ export const getStatus = (simulationId) =>
 export const stopSimulation = (simulationId) =>
   api.post('/simulation/stop', { simulationId }).then(r => r.data.data)
 
-export const getCourses = () =>
-  api.get('/courses/search').then(r => r.data.data)
+export const getRandomCourse = () =>
+  api.get('/courses/random').then(r => r.data.data)
+
+export const getCourseDetail = (courseId) =>
+  api.get(`/courses/${courseId}`).then(r => r.data.data)
+
+export const getCenters = () =>
+  api.get('/centers').then(r => r.data.data)
+
+export const getCategories = () =>
+  api.get('/categories').then(r => r.data.data)
+
+export const getCourses = (params = {}) =>
+  api.get('/courses/search', { params }).then(r => r.data.data)
 
 export const createSseConnection = (simulationId, onMessage, onComplete, onError) => {
   const es = new EventSource(`/api/v1/simulation/live/${simulationId}`)
