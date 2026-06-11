@@ -139,9 +139,10 @@ export default function RegistrationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCenterId, selectedCategoryId, selectedLevel, selectedTarget, courseRefreshTrigger])
 
-  // 9시가 되면 시뮬레이션(봇 경쟁) 시작 — 유저 입장은 accessGranted로 별도 제어
+  const shouldStart = isOpen && accessGranted
+
   useEffect(() => {
-    if (!isOpen) return
+    if (!shouldStart) return
     if (autoStartedRef.current) return
     autoStartedRef.current = true
 
@@ -176,21 +177,43 @@ export default function RegistrationPage() {
         autoStartedRef.current = false
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, retryCount])
+  }, [shouldStart, retryCount])
 
   const showToast = (msg) => {
     setToast(msg)
     setTimeout(() => setToast(''), 2500)
   }
 
-  // 토큰 확보 즉시 오버레이 표시 (9시 전 순번 대기 → 9시 후 입장 처리)
+  const getElapsedSeconds = () => {
+    const startReal = parseInt(sessionStorage.getItem('virtualStartReal') || '0')
+    const openRealTime = startReal + 30000
+    return Math.max(0, Math.floor((Date.now() - openRealTime) / 1000))
+  }
+
   const showAccessQueue = queueToken != null && !accessGranted
   const canInteract = isOpen && accessGranted && !starting && !!currentSimId
 
   const handleMissionClick = () => {
     if (!canInteract || !missionMeta) return
     if (cart.find(c => c.id === courseId)) { showToast('이미 장바구니에 있는 강좌입니다.'); return }
+
     const missionInList = courses.find(c => c.id === courseId)
+    // 미션 강좌가 만석이면 즉시 실패 결과로 이동
+    if (missionInList && !missionInList.isAvailable) {
+      navigate(`/result/${currentSimId}`, {
+        state: {
+          reserved: false,
+          failReason: '수강 인원이 마감되었습니다.',
+          courseName: missionMeta.name || '',
+          elapsedSeconds: getElapsedSeconds(),
+          totalParticipants: 0,
+          successCount: 0,
+          failCount: 1,
+        },
+      })
+      return
+    }
+
     const course = {
       id: courseId,
       center: missionMeta.centerName || '',

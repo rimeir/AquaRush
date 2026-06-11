@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -125,6 +126,17 @@ public class BotService {
                         redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
                         return;
                     }
+
+                    // 봇별 랜덤 초기 딜레이 (5~60초) — 실제 사용자처럼 접속 후 강좌 탐색·클릭 시간 시뮬레이션
+                    long initialDelay = ThreadLocalRandom.current().nextLong(5_000, 60_001);
+                    Thread.sleep(initialDelay);
+
+                    if (stopFlag.get()) {
+                        failCount.incrementAndGet();
+                        redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
+                        return;
+                    }
+
                     boolean success = tryReservationWithRetry(
                             courseId,
                             bot,
@@ -144,6 +156,11 @@ public class BotService {
                         log.debug("❌ 봇 예약 최종 실패: {}", bot.getNickname());
                     }
 
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    failCount.incrementAndGet();
+                    try { redisTemplate.opsForHash().increment(simKey, "failCount", 1L); }
+                    catch (Exception ex) { log.warn("Redis failCount increment 실패: {}", ex.getMessage()); }
                 } catch (Exception e) {
                     failCount.incrementAndGet();
                     try { redisTemplate.opsForHash().increment(simKey, "failCount", 1L); }
