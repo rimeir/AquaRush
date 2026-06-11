@@ -52,6 +52,9 @@ export default function RegistrationPage() {
   const [queuePosition, setQueuePosition] = useState(0)
   const [initialQueuePosition, setInitialQueuePosition] = useState(0)
   const [estimatedWaitSeconds, setEstimatedWaitSeconds] = useState(0)
+  const [totalBots, setTotalBots] = useState(0)
+  const [botsInQueue, setBotsInQueue] = useState(0)
+  const [botsAdmitted, setBotsAdmitted] = useState(0)
   const queueEnteredRef = useRef(false)
 
   const [courseRefreshTrigger, setCourseRefreshTrigger] = useState(0)
@@ -83,6 +86,9 @@ export default function RegistrationPage() {
         setQueuePosition(data.position)
         setInitialQueuePosition(data.initialPosition)
         setEstimatedWaitSeconds(data.estimatedWaitSeconds)
+        setTotalBots(botCount)
+        setBotsInQueue(botCount)
+        setBotsAdmitted(0)
       })
       .catch(() => {
         setAccessGranted(true)
@@ -101,6 +107,11 @@ export default function RegistrationPage() {
         } else {
           setQueuePosition(status.position)
           setEstimatedWaitSeconds(status.estimatedWaitSeconds)
+          if (status.totalBots != null) {
+            setTotalBots(status.totalBots)
+            setBotsInQueue(status.botsInQueue)
+            setBotsAdmitted(status.botsAdmitted)
+          }
         }
       } catch { /* 네트워크 오류 시 다음 틱에 재시도 */ }
     }, 1000)
@@ -259,6 +270,9 @@ export default function RegistrationPage() {
           position={queuePosition}
           initialPosition={initialQueuePosition}
           estimatedWaitSeconds={estimatedWaitSeconds}
+          totalBots={totalBots}
+          botsInQueue={botsInQueue}
+          botsAdmitted={botsAdmitted}
         />
       )}
 
