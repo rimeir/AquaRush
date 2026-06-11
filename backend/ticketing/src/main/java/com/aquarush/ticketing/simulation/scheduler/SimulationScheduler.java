@@ -1,5 +1,6 @@
 package com.aquarush.ticketing.simulation.scheduler;
 
+import com.aquarush.ticketing.accessqueue.service.AccessQueueService;
 import com.aquarush.ticketing.simulation.service.SimulationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,24 @@ import java.util.Set;
 public class SimulationScheduler {
 
     private final SimulationService simulationService;
+    private final AccessQueueService accessQueueService;
     private final RedisTemplate<String, Object> redisTemplate;
+
+    /**
+     * 접속 대기열 입장 처리
+     * 1초마다 모든 활성 대기열에서 admissionRate명씩 입장 처리
+     */
+    @Scheduled(fixedDelay = 1000)
+    public void processAccessQueues() {
+        Set<String> tokens = accessQueueService.getActiveQueueTokens();
+        for (String token : tokens) {
+            try {
+                accessQueueService.processAdmissions(token);
+            } catch (Exception e) {
+                log.error("접속 대기열 처리 실패: token={}, error={}", token, e.getMessage());
+            }
+        }
+    }
 
     /**
      * 실시간 대시보드 업데이트

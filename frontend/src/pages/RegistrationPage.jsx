@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import AquaHeader from '../components/AquaHeader'
 import AccessQueueOverlay from '../components/AccessQueueOverlay'
 import { useVirtualClock } from '../hooks/useVirtualClock'
-import { startSimulation, getCenters, getCategories, getCourses, getCourseDetail } from '../api/simulation'
+import { startSimulation, getCenters, getCategories, getCourses, getCourseDetail, enterAccessQueue, getAccessQueueStatus } from '../api/simulation'
 import './RegistrationPage.css'
 
 const LEVELS = ['초급', '중급', '고급']
@@ -41,14 +41,18 @@ export default function RegistrationPage() {
   const config = { ...loadConfig(), ...(location.state || {}) }
   const { nickname, botCount = 100, courseId = 1, totalSeats, remainingSeats } = config
 
-  const { isOpen, secondsUntilOpen } = useVirtualClock()
-  const [openOnMount] = useState(() => isOpen)
+  const { isOpen, secondsUntilOpen, virtualMs, openTimeMs } = useVirtualClock()
 
   const savedSimId = sessionStorage.getItem('aquarush_simId')
   const [currentSimId, setCurrentSimId] = useState(savedSimId)
   const [missionMeta, setMissionMeta] = useState(loadMeta())
 
   const [accessGranted, setAccessGranted] = useState(false)
+  const [queueToken, setQueueToken] = useState(null)
+  const [queuePosition, setQueuePosition] = useState(0)
+  const [initialQueuePosition, setInitialQueuePosition] = useState(0)
+  const [estimatedWaitSeconds, setEstimatedWaitSeconds] = useState(0)
+  const queueEnteredRef = useRef(false)
 
   const [courseRefreshTrigger, setCourseRefreshTrigger] = useState(0)
   const [cart, setCart] = useState([])
@@ -67,6 +71,42 @@ export default function RegistrationPage() {
   const [coursesLoading, setCoursesLoading] = useState(false)
 
   const autoStartedRef = useRef(!!savedSimId)
+
+  // 페이지 진입 즉시 접속 대기열에 등록 (9시 전이어도 미리 순번 확보)
+  useEffect(() => {
+    if (queueEnteredRef.current) return
+    queueEnteredRef.current = true
+    enterAccessQueue(botCount, virtualMs, openTimeMs)
+      .then(data => {
+        setQueueToken(data.queueToken)
+        setQueuePosition(data.position)
+        setInitialQueuePosition(data.initialPosition)
+        setEstimatedWaitSeconds(data.estimatedWaitSeconds)
+      })
+      .catch(() => {
+        // 대기열 API 실패 시 바로 입장 허가 (graceful degradation)
+        setAccessGranted(true)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // 9시 이후 1초 간격으로 대기열 상태 폴링
+  useEffect(() => {
+    if (!queueToken || accessGranted || !isOpen) return
+    const id = setInterval(async () => {
+      try {
+        const status = await getAccessQueueStatus(queueToken)
+        if (status.isGranted) {
+          setAccessGranted(true)
+        } else {
+          setQueuePosition(status.position)
+          setEstimatedWaitSeconds(status.estimatedWaitSeconds)
+        }
+      } catch { /* 네트워크 오류 시 다음 틱에 재시도 */ }
+    }, 1000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueToken, accessGranted, isOpen])
 
   // Load mission course detail if not in sessionStorage yet
   useEffect(() => {
@@ -99,7 +139,7 @@ export default function RegistrationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCenterId, selectedCategoryId, selectedLevel, selectedTarget, courseRefreshTrigger])
 
-  // Auto-start simulation when 09:00 hits
+  // 9시가 되면 시뮬레이션(봇 경쟁) 시작 — 유저 입장은 accessGranted로 별도 제어
   useEffect(() => {
     if (!isOpen) return
     if (autoStartedRef.current) return
@@ -143,7 +183,8 @@ export default function RegistrationPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
-  const showAccessQueue = openOnMount && !accessGranted
+  // 9시 이후 입장 허가 전까지 오버레이 표시 (이전/이후 진입 구분 없이 동일 처리)
+  const showAccessQueue = isOpen && !accessGranted
   const canInteract = isOpen && accessGranted && !starting && !!currentSimId
 
   const handleMissionClick = () => {
@@ -191,7 +232,11 @@ export default function RegistrationPage() {
   return (
     <>
       {showAccessQueue && (
-        <AccessQueueOverlay botCount={botCount} onComplete={() => setAccessGranted(true)} />
+        <AccessQueueOverlay
+          position={queuePosition}
+          initialPosition={initialQueuePosition}
+          estimatedWaitSeconds={estimatedWaitSeconds}
+        />
       )}
 
       <AquaHeader step={0} cartCount={cart.length} onCartClick={goToCart} />
@@ -231,12 +276,6 @@ export default function RegistrationPage() {
           </div>
         )}
 
-        {isOpen && !openOnMount && !accessGranted && (
-          <div className="refresh-notice-box">
-            🔄 수강신청이 오픈되었습니다! 봇이 경쟁을 시작했습니다.{' '}
-            <strong>F5(새로고침)</strong>을 눌러 버튼을 활성화하세요.
-          </div>
-        )}
 
         {isOpen && canInteract && !startError && (
           <div className="open-box">
