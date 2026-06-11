@@ -10,7 +10,7 @@ export function useVirtualClock() {
       const elapsed = Date.now() - parseInt(savedReal)
       return parseInt(saved) + elapsed
     }
-    const start = new Date('2025-01-15T08:59:30').getTime()
+    const start = new Date('2025-01-15T08:59:00').getTime()
     sessionStorage.setItem('virtualTime', start.toString())
     sessionStorage.setItem('virtualStartReal', Date.now().toString())
     return start
@@ -30,5 +30,7 @@ export function useVirtualClock() {
     time: `${h}:${m}:${s}`,
     isOpen: virtualMs >= OPEN_TIME,
     secondsUntilOpen: Math.max(0, Math.ceil((OPEN_TIME - virtualMs) / 1000)),
+    virtualMs,
+    openTimeMs: OPEN_TIME,
   }
 }

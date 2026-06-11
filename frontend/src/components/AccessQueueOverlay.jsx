@@ -1,31 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
 import './AccessQueueOverlay.css'
 
-const DURATION = 5000
-
-export default function AccessQueueOverlay({ botCount = 500, onComplete }) {
-  // 봇 외 일반 접속자까지 포함한 현실적인 대기 순번 (botCount의 8~12배)
-  const initialPos = useRef(botCount * 8 + Math.floor(Math.random() * botCount * 4))
-  const [position, setPosition] = useState(initialPos.current)
-  const [progress, setProgress] = useState(0)
-  const startRef = useRef(Date.now())
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const elapsed = Date.now() - startRef.current
-      if (elapsed >= DURATION) {
-        clearInterval(id)
-        setPosition(0)
-        setProgress(100)
-        setTimeout(onComplete, 300)
-        return
-      }
-      const ratio = elapsed / DURATION
-      setPosition(Math.ceil(initialPos.current * (1 - ratio)))
-      setProgress(Math.round(ratio * 100))
-    }, 80)
-    return () => clearInterval(id)
-  }, [onComplete])
+export default function AccessQueueOverlay({ position = 0, initialPosition = 1, estimatedWaitSeconds = 0 }) {
+  const progress = initialPosition > 0
+    ? Math.round(((initialPosition - position) / initialPosition) * 100)
+    : 0
 
   return (
     <div className="aq-overlay">
@@ -54,7 +32,7 @@ export default function AccessQueueOverlay({ botCount = 500, onComplete }) {
           </div>
         </div>
 
-        <p className="aq-notice">잠시만 기다려주세요 — 곧 입장됩니다</p>
+        <p className="aq-notice">잠시만 기다려주세요 — 약 {estimatedWaitSeconds}초 후 입장됩니다</p>
       </div>
     </div>
   )
