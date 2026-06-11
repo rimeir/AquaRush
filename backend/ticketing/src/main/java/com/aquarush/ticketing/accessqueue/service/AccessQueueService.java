@@ -7,6 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
+
+import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
@@ -35,24 +38,27 @@ public class AccessQueueService {
      * 입장 처리율(admissionRate): 전체 가상 접속자를 약 12초에 소화
      * 실제 오픈 시각(realOpenTime): now + (openVirtualMs - arrivalVirtualMs)
      */
-    public AccessQueueEnterResponse enterQueue(int botCount, long arrivalVirtualMs, long openVirtualMs) {
+    public AccessQueueEnterResponse enterQueue(int botCount, long arrivalVirtualMs) {
         String queueKey = QUEUE_KEY_PREFIX + java.util.UUID.randomUUID();
         // queueToken = queueKey 에서 prefix 제거
         String queueToken = queueKey.replace(QUEUE_KEY_PREFIX, "");
         String metaKey   = META_KEY_PREFIX + queueToken;
 
-        int totalVirtual = botCount * 10;
+        int totalVirtual = botCount;
         int earlyCount   = (int) (totalVirtual * 0.8);
         Random rnd = new Random();
 
+        // 가상 유저 전체를 Set<TypedTuple>로 모아 한 번의 ZADD로 전송 (N+1 문제 방지)
+        Set<TypedTuple<Object>> tuples = new HashSet<>(totalVirtual);
         for (int i = 0; i < earlyCount; i++) {
-            long offset = -(long) (rnd.nextDouble() * 120_000); // -120s ~ 0s
-            redisTemplate.opsForZSet().add(queueKey, "v:" + i, (double) (openVirtualMs + offset));
+            long offset = -(long) (rnd.nextDouble() * 120_000);
+            tuples.add(new org.springframework.data.redis.core.DefaultTypedTuple<>("v:" + i, (double) (arrivalVirtualMs + offset)));
         }
         for (int i = earlyCount; i < totalVirtual; i++) {
-            long offset = (long) (rnd.nextDouble() * 10_000); // 0s ~ +10s surge
-            redisTemplate.opsForZSet().add(queueKey, "v:" + i, (double) (openVirtualMs + offset));
+            long offset = (long) (rnd.nextDouble() * 30_000);
+            tuples.add(new org.springframework.data.redis.core.DefaultTypedTuple<>("v:" + i, (double) (arrivalVirtualMs + offset)));
         }
+        redisTemplate.opsForZSet().add(queueKey, tuples);
 
         // 실제 유저 삽입 (이미 있으면 갱신 안 함)
         Long existingRank = redisTemplate.opsForZSet().rank(queueKey, USER_MEMBER);
@@ -66,18 +72,12 @@ public class AccessQueueService {
         // 초당 처리율: 전체를 약 12초에 소화 (최소 5명/s)
         int admissionRate = Math.max(5, totalVirtual / 12);
 
-        // realOpenTime = 현재 실제 시각 + 오픈까지 남은 가상 시간
-        long msUntilOpen = Math.max(0, openVirtualMs - arrivalVirtualMs);
-        long realOpenTime = System.currentTimeMillis() + msUntilOpen;
-
         redisTemplate.opsForHash().put(metaKey, "admissionRate",   String.valueOf(admissionRate));
-        redisTemplate.opsForHash().put(metaKey, "realOpenTime",    String.valueOf(realOpenTime));
         redisTemplate.opsForHash().put(metaKey, "initialPosition", String.valueOf(initialPosition));
 
         int estimatedWait = (int) Math.ceil((double) initialPosition / admissionRate);
 
-        log.info("접속 대기열 진입: token={}, virtualUsers={}, position={}, msUntilOpen={}ms",
-                queueToken, totalVirtual, initialPosition, msUntilOpen);
+        log.info("접속 대기열 진입: token={}, virtualUsers={}, position={}", queueToken, totalVirtual, initialPosition);
 
         return AccessQueueEnterResponse.builder()
                 .queueToken(queueToken)
@@ -131,11 +131,6 @@ public class AccessQueueService {
      */
     public void processAdmissions(String queueToken) {
         String metaKey = META_KEY_PREFIX + queueToken;
-
-        Object realOpenTimeObj = redisTemplate.opsForHash().get(metaKey, "realOpenTime");
-        if (realOpenTimeObj == null) return;
-
-        if (System.currentTimeMillis() < Long.parseLong(realOpenTimeObj.toString())) return;
 
         Object rateObj = redisTemplate.opsForHash().get(metaKey, "admissionRate");
         int rate = rateObj != null ? Integer.parseInt(rateObj.toString()) : 5;

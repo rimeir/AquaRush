@@ -41,7 +41,7 @@ export default function RegistrationPage() {
   const config = { ...loadConfig(), ...(location.state || {}) }
   const { nickname, botCount = 100, courseId = 1, totalSeats, remainingSeats } = config
 
-  const { isOpen, secondsUntilOpen, virtualMs, openTimeMs } = useVirtualClock()
+  const { isOpen, secondsUntilOpen, virtualMs } = useVirtualClock()
 
   const savedSimId = sessionStorage.getItem('aquarush_simId')
   const [currentSimId, setCurrentSimId] = useState(savedSimId)
@@ -72,11 +72,12 @@ export default function RegistrationPage() {
 
   const autoStartedRef = useRef(!!savedSimId)
 
-  // 페이지 진입 즉시 접속 대기열에 등록 (9시 전이어도 미리 순번 확보)
+  // 페이지 진입마다 새 대기열 생성 (새로고침 = 맨 뒤로)
   useEffect(() => {
     if (queueEnteredRef.current) return
     queueEnteredRef.current = true
-    enterAccessQueue(botCount, virtualMs, openTimeMs)
+
+    enterAccessQueue(botCount, virtualMs)
       .then(data => {
         setQueueToken(data.queueToken)
         setQueuePosition(data.position)
@@ -84,7 +85,6 @@ export default function RegistrationPage() {
         setEstimatedWaitSeconds(data.estimatedWaitSeconds)
       })
       .catch(() => {
-        // 대기열 API 실패 시 바로 입장 허가 (graceful degradation)
         setAccessGranted(true)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,7 +92,7 @@ export default function RegistrationPage() {
 
   // 9시 이후 1초 간격으로 대기열 상태 폴링
   useEffect(() => {
-    if (!queueToken || accessGranted || !isOpen) return
+    if (!queueToken || accessGranted) return
     const id = setInterval(async () => {
       try {
         const status = await getAccessQueueStatus(queueToken)
@@ -183,8 +183,8 @@ export default function RegistrationPage() {
     setTimeout(() => setToast(''), 2500)
   }
 
-  // 9시 이후 입장 허가 전까지 오버레이 표시 (이전/이후 진입 구분 없이 동일 처리)
-  const showAccessQueue = isOpen && !accessGranted
+  // 토큰 확보 즉시 오버레이 표시 (9시 전 순번 대기 → 9시 후 입장 처리)
+  const showAccessQueue = queueToken != null && !accessGranted
   const canInteract = isOpen && accessGranted && !starting && !!currentSimId
 
   const handleMissionClick = () => {

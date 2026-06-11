@@ -32,7 +32,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/v3/api-docs/**",
                         "/api/v1/simulation/status/**",
                         "/api/v1/simulation/live/**",
-                        "/api/v1/access-queue/status/**",
+                        "/api/v1/access-queue/**",
                         "/api/v1/centers/**",
                         "/api/v1/categories/**",
                         "/api/v1/courses/**"

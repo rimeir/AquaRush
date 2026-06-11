@@ -18,6 +18,4 @@ public class AccessQueueEnterRequest {
     private int botCount;
 
     private long arrivalVirtualMs;
-
-    private long openVirtualMs;
 }
