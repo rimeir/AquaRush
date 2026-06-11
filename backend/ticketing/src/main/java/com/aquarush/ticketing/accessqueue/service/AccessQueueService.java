@@ -74,6 +74,7 @@ public class AccessQueueService {
 
         redisTemplate.opsForHash().put(metaKey, "admissionRate",   String.valueOf(admissionRate));
         redisTemplate.opsForHash().put(metaKey, "initialPosition", String.valueOf(initialPosition));
+        redisTemplate.opsForHash().put(metaKey, "totalBots",       String.valueOf(totalVirtual));
 
         int estimatedWait = (int) Math.ceil((double) initialPosition / admissionRate);
 
@@ -115,11 +116,21 @@ public class AccessQueueService {
         int rate = rateObj != null ? Integer.parseInt(rateObj.toString()) : 5;
         int estimatedWait = (int) Math.ceil((double) position / rate);
 
+        Object totalBotsObj = redisTemplate.opsForHash().get(metaKey, "totalBots");
+        long totalBots = totalBotsObj != null ? Long.parseLong(totalBotsObj.toString()) : 0;
+        Long queueSize = redisTemplate.opsForZSet().size(queueKey);
+        long currentSize = queueSize != null ? queueSize : 0;
+        long botsInQueue = Math.max(0, currentSize - 1); // 유저 1명 제외
+        long botsAdmitted = Math.max(0, totalBots - botsInQueue);
+
         return AccessQueueStatusResponse.builder()
                 .isGranted(false)
                 .position(position)
                 .initialPosition(initialPosition)
                 .estimatedWaitSeconds(estimatedWait)
+                .totalBots(totalBots)
+                .botsInQueue(botsInQueue)
+                .botsAdmitted(botsAdmitted)
                 .build();
     }
 

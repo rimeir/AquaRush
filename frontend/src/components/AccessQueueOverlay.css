@@ -95,6 +95,55 @@
   transition: width 0.08s linear;
 }
 
+.aq-bot-stats {
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  text-align: left;
+}
+
+.aq-bot-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.6rem;
+}
+
+.aq-bot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+}
+
+.aq-bot-label { color: #666; }
+
+.aq-bot-val { font-weight: 700; }
+.aq-bot-val.waiting { color: #e65100; }
+.aq-bot-val.admitted { color: #2e7d32; }
+
+.aq-bot-progress-wrap { margin-top: 0.6rem; }
+
+.aq-bot-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #888;
+  margin-bottom: 0.4rem;
+}
+
+.aq-bot-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #43a047, #66bb6a);
+  border-radius: 6px;
+  transition: width 1s linear;
+}
+
 .aq-notice {
   font-size: 0.85rem;
   color: #aaa;

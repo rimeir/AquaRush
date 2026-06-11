@@ -1,8 +1,19 @@
 import './AccessQueueOverlay.css'
 
-export default function AccessQueueOverlay({ position = 0, initialPosition = 1, estimatedWaitSeconds = 0 }) {
+export default function AccessQueueOverlay({
+  position = 0,
+  initialPosition = 1,
+  estimatedWaitSeconds = 0,
+  totalBots = 0,
+  botsInQueue = 0,
+  botsAdmitted = 0,
+}) {
   const progress = initialPosition > 0
     ? Math.round(((initialPosition - position) / initialPosition) * 100)
+    : 0
+
+  const botAdmitProgress = totalBots > 0
+    ? Math.round((botsAdmitted / totalBots) * 100)
     : 0
 
   return (
@@ -31,6 +42,29 @@ export default function AccessQueueOverlay({ position = 0, initialPosition = 1, 
             <div className="aq-progress-fill" style={{ width: `${progress}%` }} />
           </div>
         </div>
+
+        {totalBots > 0 && (
+          <div className="aq-bot-stats">
+            <div className="aq-bot-title">실시간 접속 현황</div>
+            <div className="aq-bot-row">
+              <span className="aq-bot-label">대기 중</span>
+              <span className="aq-bot-val waiting">{botsInQueue.toLocaleString()}명</span>
+            </div>
+            <div className="aq-bot-row">
+              <span className="aq-bot-label">입장 완료</span>
+              <span className="aq-bot-val admitted">{botsAdmitted.toLocaleString()}명</span>
+            </div>
+            <div className="aq-bot-progress-wrap">
+              <div className="aq-bot-progress-header">
+                <span>입장률</span>
+                <span>{botAdmitProgress}%</span>
+              </div>
+              <div className="aq-progress-track">
+                <div className="aq-bot-progress-fill" style={{ width: `${botAdmitProgress}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="aq-notice">잠시만 기다려주세요 — 약 {estimatedWaitSeconds}초 후 입장됩니다</p>
       </div>

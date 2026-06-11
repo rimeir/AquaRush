@@ -12,6 +12,9 @@ public class AccessQueueStatusResponse {
     private long position;
     private long initialPosition;
     private int estimatedWaitSeconds;
+    private long totalBots;
+    private long botsInQueue;
+    private long botsAdmitted;
 
     public static AccessQueueStatusResponse granted() {
         return AccessQueueStatusResponse.builder()
