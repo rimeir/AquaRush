@@ -5,14 +5,14 @@ import PoolBackground from '../components/PoolBackground'
 import './StartPage.css'
 
 const PRESETS = [
-  { label: 'Easy',   botCount: 100,  description: '100명 경쟁' },
-  { label: 'Normal', botCount: 500,  description: '500명 경쟁' },
-  { label: 'Hard',   botCount: 1000, description: '1000명 경쟁' },
+  { label: 'Easy',   botCount: 50,  description: '50명 경쟁' },
+  { label: 'Normal', botCount: 100, description: '100명 경쟁' },
+  { label: 'Hard',   botCount: 200, description: '200명 경쟁' },
 ]
 
 export default function StartPage() {
   const navigate = useNavigate()
-  const [botCount, setBotCount] = useState(100)
+  const [botCount, setBotCount] = useState(50)
   const [totalSeats, setTotalSeats] = useState(20)
   const [remainingSeats, setRemainingSeats] = useState(5)
   const [loading, setLoading] = useState(false)

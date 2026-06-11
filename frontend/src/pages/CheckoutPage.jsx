@@ -39,7 +39,7 @@ export default function CheckoutPage() {
     setProcessing(true)
 
     const elapsedSeconds = getElapsedSeconds()
-    const hasMission = cart.some(c => c.id === missionCourseId)
+    const hasMission = cart.some(c => Number(c.id) === Number(missionCourseId))
 
     if (!hasMission) {
       navigate(`/result/${simulationId}`, {
