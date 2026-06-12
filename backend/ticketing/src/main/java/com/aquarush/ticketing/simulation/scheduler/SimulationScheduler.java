@@ -1,6 +1,7 @@
 package com.aquarush.ticketing.simulation.scheduler;
 
 import com.aquarush.ticketing.accessqueue.service.AccessQueueService;
+import com.aquarush.ticketing.simulation.service.BotService;
 import com.aquarush.ticketing.simulation.service.SimulationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ public class SimulationScheduler {
 
     private final SimulationService simulationService;
     private final AccessQueueService accessQueueService;
+    private final BotService botService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -28,7 +30,13 @@ public class SimulationScheduler {
         Set<String> tokens = accessQueueService.getActiveQueueTokens();
         for (String token : tokens) {
             try {
-                accessQueueService.processAdmissions(token);
+                int admitted = accessQueueService.processAdmissions(token);
+                if (admitted > 0) {
+                    String simulationId = accessQueueService.getLinkedSimulationId(token);
+                    if (simulationId != null) {
+                        botService.admitBots(simulationId, admitted);
+                    }
+                }
             } catch (Exception e) {
                 log.error("접속 대기열 처리 실패: token={}, error={}", token, e.getMessage());
             }

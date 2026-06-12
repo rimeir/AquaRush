@@ -159,7 +159,7 @@ export default function RegistrationPage() {
 
     setStarting(true)
     setStartError('')
-    startSimulation(courseId, botCount, nickname, totalSeats, remainingSeats)
+    startSimulation(courseId, botCount, nickname, totalSeats, remainingSeats, queueToken)
       .then(data => {
         const sid = data.simulationId
         const meta = {
