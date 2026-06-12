@@ -63,7 +63,7 @@ public class ReservationService {
     }
 
     private void enterQueueIfAbsent(String sessionId, Long courseId) {
-        if (waitingQueueService.getQueuePosition(sessionId, courseId) == null) {
+        if (!waitingQueueService.isInQueueOrAllowed(sessionId, courseId)) {
             waitingQueueService.enterQueue(sessionId, courseId);
             log.debug("대기열 진입: sessionId={}, courseId={}", sessionId, courseId);
         }
