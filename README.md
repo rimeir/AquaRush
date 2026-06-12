@@ -31,7 +31,7 @@
 |---|---|
 | ![시작](frontend/docs/screenshots/01_start_page.png) | ![카운트다운](frontend/docs/screenshots/03_registration_countdown.png) |
 
-| 접속 유량제어 (9시 이후 새로고침 시) | 강좌 목록 (시뮬레이션 진행 중) |
+| 접속 유량제어 (새로고침 시) | 강좌 목록 (시뮬레이션 진행 중) |
 |---|---|
 | ![유량제어](frontend/docs/screenshots/04_access_queue_overlay.png) | ![목록](frontend/docs/screenshots/05_registration_active.png) |
 
