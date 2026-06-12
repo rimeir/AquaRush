@@ -14,20 +14,20 @@
 
 ## 프로젝트 개요
 
-최근 수영의 인기가 크게 높아지고 있습니다.
+최근 수영의 인기가 크게 높아지고 있습니다.   
 수영장 수강신청은 매달 정해진 시간에 수백 명이 동시에 몰리게 됩니다.  
 **Aqua Rush**는 이러한 경쟁 시스템 상황을 그대로 재현합니다.
 
 - 사용자는 경쟁 난이도(봇 수)와 강좌 총 정원·남은 좌석을 설정하여 시뮬레이션에 참가
 - 수강신청 시간이 되면 설정한 수의 봇이 자동으로 예약 경쟁을 시작
 - 사용자는 F5로 새로고침하여 접속 대기열을 통과하고, 체육센터·종목·레벨·교육 대상 필터로 미션 강좌를 직접 찾아 신청
-- 결과(내 순위 / 성공 여부 / 전체 통계)를 실시간으로 확인
+- 결과(내 순위 / 성공 여부)를 실시간으로 확인
 
 ---
 
 ## 스크린샷
 
-| 시작 페이지 (정원 + 난이도 설정) | 수강신청 (카운트다운) |
+| 시작 페이지 (정원·남은 좌석 + 난이도 설정) | 수강신청 (카운트다운) |
 |---|---|
 | ![시작](frontend/docs/screenshots/01_start_page.png) | ![카운트다운](frontend/docs/screenshots/03_registration_countdown.png) |
 
@@ -171,48 +171,5 @@ AquaRush/
 └── docker-compose.yml          Redis + Redis Commander
 ```
 
----
-
-## API 엔드포인트
-
-### 시뮬레이션
-```
-POST   /api/v1/simulation/start          시뮬레이션 시작 (봇 생성 및 경쟁 시작)
-GET    /api/v1/simulation/status/{id}    현황 조회
-GET    /api/v1/simulation/live/{id}      실시간 SSE 스트림
-POST   /api/v1/simulation/stop           시뮬레이션 중단
-```
-
-### 예약
-```
-POST   /api/v1/reservations              예약 생성 (분산 락 적용)
-GET    /api/v1/reservations/{id}         예약 상세
-GET    /api/v1/reservations/my           내 예약 목록
-DELETE /api/v1/reservations/{id}         예약 취소
-```
-
-### 강좌 / 센터 / 카테고리
-```
-GET    /api/v1/courses/{id}              강좌 상세
-GET    /api/v1/courses/search            강좌 검색 (센터/카테고리/레벨/교육대상)
-GET    /api/v1/courses/random            활성 강좌 1개 랜덤 조회
-GET    /api/v1/centers                   센터 목록
-GET    /api/v1/categories                카테고리 목록
-```
-
----
-
-## 구현 현황
-
-| 모듈 | 상태 |
-|---|---|
-| 강좌/센터/카테고리 API | ✅ 완료 |
-| 예약 시스템 (이중 동시성 제어) | ✅ 완료 |
-| 유량제어 (Rate Limiting) | ✅ 완료 |
-| 분산 락 (Redisson) | ✅ 완료 |
-| Redis 대기열 | ✅ 완료 |
-| 시뮬레이션 엔진 (봇, SSE) | ✅ 완료 |
-| 프론트엔드 (React) | ✅ 완료 |
-| 부하 테스트 (10/100/1000명) | ✅ 완료 |
 
 자세한 변경 이력: [`backend/ticketing/CHANGES.md`](backend/ticketing/CHANGES.md) · [`frontend/CHANGES.md`](frontend/CHANGES.md)
