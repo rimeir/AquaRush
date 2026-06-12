@@ -1,12 +1,9 @@
 package com.aquarush.ticketing.reservation.service;
 
-import com.aquarush.ticketing.course.entity.Course;
-import com.aquarush.ticketing.course.repository.CourseRepository;
 import com.aquarush.ticketing.lock.service.DistributedLockService;
 import com.aquarush.ticketing.reservation.dto.ReservationCreateRequest;
 import com.aquarush.ticketing.reservation.dto.ReservationResponse;
 import com.aquarush.ticketing.reservation.entity.Reservation;
-import com.aquarush.ticketing.reservation.entity.ReservationStatus;
 import com.aquarush.ticketing.reservation.repository.ReservationRepository;
 import com.aquarush.ticketing.waitingqueue.service.WaitingQueueService;
 import lombok.RequiredArgsConstructor;
@@ -20,10 +17,7 @@ import java.util.stream.Collectors;
 /**
  * 예약 서비스
  *
- * ⭐ 개선 사항:
- * - findById() → findByIdWithLock() 변경
- * - 비관적 락으로 완벽한 동시성 제어
- * - 정원 초과 방지
+ * 예약 생성 시 Redisson 락이 트랜잭션 전체를 감싸도록 ReservationTxService에 위임한다.
  */
 @Slf4j
 @Service
@@ -32,99 +26,35 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private final ReservationRepository reservationRepository;
-    private final CourseRepository courseRepository;
     private final DistributedLockService distributedLockService;
     private final WaitingQueueService waitingQueueService;
+    private final ReservationTxService reservationTxService;
 
     /**
-     * 예약 생성 (분산 락 + 비관적 락 적용)
+     * 예약 생성 (분산 락 → 트랜잭션 순서 보장)
      *
-     * ⭐ 변경 사항:
-     * - courseRepository.findById() → findByIdWithLock()
-     * - DB 레벨 잠금으로 완벽한 동시성 제어
-     * - 정원 초과 완벽 방지
+     * Redisson 락 획득 후 ReservationTxService를 호출하여 트랜잭션을 시작함으로써
+     * 락 해제가 트랜잭션 커밋 이후에 일어나는 것을 보장한다.
      */
-    @Transactional
     public ReservationResponse createReservation(ReservationCreateRequest request) {
         log.info("예약 생성 시도: courseId={}, userId={}",
                 request.getCourseId(), request.getUserId());
 
-        // 대기열 게이트: sessionId가 있는 경우 대기열을 통해서만 예약 가능
         if (request.getSessionId() != null) {
             enterQueueIfAbsent(request.getSessionId(), request.getCourseId());
             checkQueueAllowed(request.getSessionId(), request.getCourseId());
         }
 
-        // 분산 락 사용
         String lockKey = "reservation:course:" + request.getCourseId();
 
+        // 락 획득 → 트랜잭션 시작(TxService) → 커밋 → 락 해제
         ReservationResponse response = distributedLockService.executeWithLock(
                 lockKey,
-                5L,   // 5초 대기
-                10L,  // 10초 유지
-                () -> {
-                    // 1. ⭐ 강좌 조회 (비관적 락)
-                    // Before: courseRepository.findById(request.getCourseId())
-                    // After:  courseRepository.findByIdWithLock(request.getCourseId())
-                    Course course = courseRepository.findByIdWithLock(request.getCourseId())
-                            .orElseThrow(() -> new IllegalArgumentException(
-                                    "강좌를 찾을 수 없습니다: " + request.getCourseId()));
-
-                    log.debug("강좌 조회 (LOCK): courseId={}, capacity={}/{}",
-                            course.getId(),
-                            course.getCurrentCapacity(),
-                            course.getMaxCapacity());
-
-                    // 2. 예약 가능 여부 확인
-                    if (!course.isAvailable()) {
-                        log.warn("❌ 예약 불가: courseId={}, capacity={}/{}, status={}",
-                                course.getId(),
-                                course.getCurrentCapacity(),
-                                course.getMaxCapacity(),
-                                course.getStatus());
-                        throw new IllegalStateException("예약할 수 없는 강좌입니다.");
-                    }
-
-                    // 3. 중복 예약 확인
-                    boolean exists = reservationRepository.existsActiveByCourseIdAndUserId(
-                            request.getCourseId(),
-                            request.getUserId()
-                    );
-
-                    if (exists) {
-                        log.warn("❌ 중복 예약: courseId={}, userId={}",
-                                request.getCourseId(),
-                                request.getUserId());
-                        throw new IllegalStateException("이미 예약한 강좌입니다.");
-                    }
-
-                    // 4. 예약 생성
-                    Reservation reservation = Reservation.builder()
-                            .course(course)
-                            .userId(request.getUserId())
-                            .userName(request.getUserName())
-                            .userPhone(request.getUserPhone())
-                            .status(ReservationStatus.CONFIRMED)
-                            .build();
-
-                    reservationRepository.save(reservation);
-
-                    // 5. 정원 증가
-                    course.increaseCapacity();
-
-                    log.info("✅ 예약 성공: id={}, courseId={}, userId={}, capacity={}/{}",
-                            reservation.getId(),
-                            course.getId(),
-                            request.getUserId(),
-                            course.getCurrentCapacity(),
-                            course.getMaxCapacity());
-
-                    // 6. 응답 반환
-                    return ReservationResponse.from(reservation);
-                }
+                5L,
+                10L,
+                () -> reservationTxService.createWithTransaction(request)
         );
 
-        // 예약 성공 후 대기열에서 제거
         if (request.getSessionId() != null) {
             waitingQueueService.removeFromQueue(request.getSessionId(), request.getCourseId());
         }
@@ -133,7 +63,7 @@ public class ReservationService {
     }
 
     private void enterQueueIfAbsent(String sessionId, Long courseId) {
-        if (waitingQueueService.getQueuePosition(sessionId, courseId) == null) {
+        if (!waitingQueueService.isInQueueOrAllowed(sessionId, courseId)) {
             waitingQueueService.enterQueue(sessionId, courseId);
             log.debug("대기열 진입: sessionId={}, courseId={}", sessionId, courseId);
         }
