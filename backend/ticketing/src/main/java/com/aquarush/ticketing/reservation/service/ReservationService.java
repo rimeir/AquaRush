@@ -9,6 +9,7 @@ import com.aquarush.ticketing.waitingqueue.service.WaitingQueueService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -35,7 +36,12 @@ public class ReservationService {
      *
      * Redisson 락 획득 후 ReservationTxService를 호출하여 트랜잭션을 시작함으로써
      * 락 해제가 트랜잭션 커밋 이후에 일어나는 것을 보장한다.
+     *
+     * NOT_SUPPORTED로 클래스 레벨 readOnly 트랜잭션에 합류하지 않도록 막는다 —
+     * 그렇지 않으면 ReservationTxService.createWithTransaction()이 이 read-only
+     * 트랜잭션에 합류해 SELECT ... FOR UPDATE가 실패한다.
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ReservationResponse createReservation(ReservationCreateRequest request) {
         log.info("예약 생성 시도: courseId={}, userId={}",
                 request.getCourseId(), request.getUserId());
