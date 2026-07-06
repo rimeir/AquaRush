@@ -18,6 +18,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Semaphore;
 
 /**
  * 봇 시뮬레이션 서비스 (재시도 로직 추가)
@@ -48,6 +49,36 @@ public class BotService {
 
     // 실행 중인 시뮬레이션의 중단 플래그 (simulationId → stopFlag)
     private final ConcurrentHashMap<String, AtomicBoolean> stopFlags = new ConcurrentHashMap<>();
+
+    // 유량제어 게이트: 대기열 입장 허가 시까지 봇 스레드를 대기시키는 Semaphore (simulationId → gate)
+    private final ConcurrentHashMap<String, Semaphore> botGates = new ConcurrentHashMap<>();
+
+    /**
+     * 봇 게이트 초기화 — 시뮬레이션 시작 시 호출
+     * @param initialPermits 이미 대기열을 통과한 봇 수 (즉시 실행 가능한 봇 수)
+     */
+    public void initBotGate(String simulationId, int initialPermits) {
+        botGates.put(simulationId, new Semaphore(initialPermits));
+        log.info("봇 게이트 초기화: simulationId={}, initialPermits={}", simulationId, initialPermits);
+    }
+
+    /**
+     * 대기열에서 봇 입장 허가 — 스케줄러에서 admissionRate만큼 호출
+     */
+    public void admitBots(String simulationId, int count) {
+        Semaphore gate = botGates.get(simulationId);
+        if (gate != null) {
+            gate.release(count);
+            log.debug("봇 입장 허가: simulationId={}, count={}", simulationId, count);
+        }
+    }
+
+    /**
+     * 봇 게이트 제거 — 시뮬레이션 종료 시 호출
+     */
+    public void removeBotGate(String simulationId) {
+        botGates.remove(simulationId);
+    }
 
     /**
      * 봇 N명 생성
@@ -127,6 +158,24 @@ public class BotService {
                         return;
                     }
 
+                    // 유량제어 게이트 통과 대기 — 대기열에서 입장 허가될 때까지 블로킹
+                    Semaphore gate = botGates.get(simulationId);
+                    if (gate != null) {
+                        while (!gate.tryAcquire(500, TimeUnit.MILLISECONDS)) {
+                            if (stopFlag.get()) {
+                                failCount.incrementAndGet();
+                                redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
+                                return;
+                            }
+                        }
+                    }
+
+                    if (stopFlag.get()) {
+                        failCount.incrementAndGet();
+                        redisTemplate.opsForHash().increment(simKey, "failCount", 1L);
+                        return;
+                    }
+
                     // 봇별 랜덤 초기 딜레이 (5~60초) — 실제 사용자처럼 접속 후 강좌 탐색·클릭 시간 시뮬레이션
                     long initialDelay = ThreadLocalRandom.current().nextLong(5_000, 60_001);
                     Thread.sleep(initialDelay);
@@ -188,6 +237,7 @@ public class BotService {
         } finally {
             executor.shutdown();
             stopFlags.remove(simulationId);
+            botGates.remove(simulationId);
         }
 
         log.info("🎯 봇 시뮬레이션 완료: 성공={}, 실패={}, 총 시도={}",
@@ -321,6 +371,11 @@ public class BotService {
         if (flag != null) {
             flag.set(true);
             log.info("봇 시뮬레이션 중단 신호 전송: simulationId={}", simulationId);
+        }
+        // 게이트에서 대기 중인 봇 스레드도 즉시 unblock
+        Semaphore gate = botGates.get(simulationId);
+        if (gate != null) {
+            gate.release(Integer.MAX_VALUE / 2);
         }
     }
 

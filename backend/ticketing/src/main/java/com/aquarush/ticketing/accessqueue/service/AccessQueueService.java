@@ -137,10 +137,10 @@ public class AccessQueueService {
     /**
      * 입장 처리 (스케줄러에서 1초마다 호출)
      *
-     * realOpenTime 이전에는 실행하지 않는다.
      * Sorted Set 앞에서부터 admissionRate개 제거 → 유저("user")가 포함되면 자동으로 입장 처리.
+     * @return 이번 호출에서 입장 처리된 봇 수 (user 제외)
      */
-    public void processAdmissions(String queueToken) {
+    public int processAdmissions(String queueToken) {
         String metaKey = META_KEY_PREFIX + queueToken;
 
         Object rateObj = redisTemplate.opsForHash().get(metaKey, "admissionRate");
@@ -149,12 +149,52 @@ public class AccessQueueService {
         String queueKey = QUEUE_KEY_PREFIX + queueToken;
         Long size = redisTemplate.opsForZSet().size(queueKey);
         if (size == null || size == 0) {
-            // 큐 비었으면 메타도 정리
             redisTemplate.delete(metaKey);
-            return;
+            return 0;
         }
 
+        // 제거 대상 멤버를 조회해 봇 수 계산 (user 제외)
+        Set<Object> toRemove = redisTemplate.opsForZSet().range(queueKey, 0, rate - 1);
+        if (toRemove == null || toRemove.isEmpty()) return 0;
+
+        long botCount = toRemove.stream()
+                .filter(m -> !USER_MEMBER.equals(m.toString()))
+                .count();
+
         redisTemplate.opsForZSet().removeRange(queueKey, 0, rate - 1);
+        return (int) botCount;
+    }
+
+    /**
+     * 대기열과 시뮬레이션을 연결 — 입장 처리된 봇을 해당 시뮬레이션 봇 게이트로 전달하기 위함
+     */
+    public void linkSimulation(String queueToken, String simulationId) {
+        redisTemplate.opsForHash().put(META_KEY_PREFIX + queueToken, "simulationId", simulationId);
+        log.info("대기열-시뮬레이션 연결: token={}, simulationId={}", queueToken, simulationId);
+    }
+
+    /**
+     * 연결된 simulationId 조회 (스케줄러에서 admitBots 호출에 사용)
+     */
+    public String getLinkedSimulationId(String queueToken) {
+        Object obj = redisTemplate.opsForHash().get(META_KEY_PREFIX + queueToken, "simulationId");
+        return obj != null ? obj.toString() : null;
+    }
+
+    /**
+     * 시뮬레이션 시작 시점까지 이미 입장 처리된 봇 수 반환
+     */
+    public int getAdmittedBotCount(String queueToken) {
+        String metaKey = META_KEY_PREFIX + queueToken;
+        Object totalBotsObj = redisTemplate.opsForHash().get(metaKey, "totalBots");
+        if (totalBotsObj == null) return 0;
+        long totalBots = Long.parseLong(totalBotsObj.toString());
+
+        String queueKey = QUEUE_KEY_PREFIX + queueToken;
+        Long queueSize = redisTemplate.opsForZSet().size(queueKey);
+        long currentSize = queueSize != null ? queueSize : 0;
+        long botsInQueue = Math.max(0, currentSize - 1); // user 멤버 제외
+        return (int) Math.max(0, totalBots - botsInQueue);
     }
 
     /**
