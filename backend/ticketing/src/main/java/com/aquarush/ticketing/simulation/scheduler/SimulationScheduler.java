@@ -1,7 +1,6 @@
 package com.aquarush.ticketing.simulation.scheduler;
 
 import com.aquarush.ticketing.accessqueue.service.AccessQueueService;
-import com.aquarush.ticketing.simulation.service.BotService;
 import com.aquarush.ticketing.simulation.service.SimulationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,25 +17,21 @@ public class SimulationScheduler {
 
     private final SimulationService simulationService;
     private final AccessQueueService accessQueueService;
-    private final BotService botService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
-     * 접속 대기열 입장 처리
-     * 1초마다 모든 활성 대기열에서 admissionRate명씩 입장 처리
+     * 접속 대기열 입장 처리 (1초마다)
+     *
+     * True Method B: 스케줄러는 대기열 멤버를 제거하기만 함.
+     * 각 봇 스레드는 자신의 bot:N 슬롯을 폴링하여 입장 여부를 독립적으로 감지한다.
+     * admitBots() 호출 불필요.
      */
     @Scheduled(fixedDelay = 1000)
     public void processAccessQueues() {
         Set<String> tokens = accessQueueService.getActiveQueueTokens();
         for (String token : tokens) {
             try {
-                int admitted = accessQueueService.processAdmissions(token);
-                if (admitted > 0) {
-                    String simulationId = accessQueueService.getLinkedSimulationId(token);
-                    if (simulationId != null) {
-                        botService.admitBots(simulationId, admitted);
-                    }
-                }
+                accessQueueService.processAdmissions(token);
             } catch (Exception e) {
                 log.error("접속 대기열 처리 실패: token={}, error={}", token, e.getMessage());
             }
@@ -44,39 +39,23 @@ public class SimulationScheduler {
     }
 
     /**
-     * 실시간 대시보드 업데이트
-     * 1초마다 모든 활성 시뮬레이션에 SSE 전송
+     * 실시간 대시보드 업데이트 (1초마다)
      */
-    @Scheduled(fixedDelay = 1000) // 1초
+    @Scheduled(fixedDelay = 1000)
     public void broadcastSimulationUpdates() {
-        // Redis에서 모든 시뮬레이션 키 조회
         Set<String> keys = redisTemplate.keys("simulation:*");
+        if (keys == null || keys.isEmpty()) return;
 
-        if (keys == null || keys.isEmpty()) {
-            return;
-        }
-
-        // 각 시뮬레이션에 업데이트 전송
         for (String key : keys) {
             String simulationId = key.replace("simulation:", "");
-
             try {
-                // 상태 확인
                 Object statusObj = redisTemplate.opsForHash().get(key, "status");
-                if (statusObj == null) {
-                    continue;
-                }
-
-                String status = statusObj.toString();
-
-                // RUNNING 상태만 업데이트
-                if ("RUNNING".equals(status)) {
+                if (statusObj == null) continue;
+                if ("RUNNING".equals(statusObj.toString())) {
                     simulationService.broadcastUpdate(simulationId);
                 }
-
             } catch (Exception e) {
-                log.error("시뮬레이션 업데이트 전송 실패: simulationId={}, error={}",
-                        simulationId, e.getMessage());
+                log.error("시뮬레이션 업데이트 전송 실패: simulationId={}, error={}", simulationId, e.getMessage());
             }
         }
     }

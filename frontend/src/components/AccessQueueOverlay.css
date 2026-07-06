@@ -144,6 +144,30 @@
   transition: width 1s linear;
 }
 
+.aq-countdown-box {
+  margin-bottom: 1.2rem;
+}
+
+.aq-countdown-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.4rem;
+}
+
+.aq-countdown-num {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #e65100;
+  line-height: 1.1;
+}
+
+.aq-countdown-num span {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #666;
+  margin-left: 4px;
+}
+
 .aq-notice {
   font-size: 0.85rem;
   color: #aaa;

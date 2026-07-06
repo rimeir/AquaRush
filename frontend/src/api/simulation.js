@@ -29,8 +29,8 @@ export const getCourses = (params = {}) =>
 export const reserveForUser = (simulationId) =>
   api.post(`/simulation/${simulationId}/reserve`).then(r => r.data.data)
 
-export const enterAccessQueue = (botCount, arrivalVirtualMs) =>
-  api.post('/access-queue/enter', { botCount, arrivalVirtualMs }).then(r => r.data.data)
+export const enterAccessQueue = (botCount, arrivalVirtualMs, secondsUntilOpen) =>
+  api.post('/access-queue/enter', { botCount, arrivalVirtualMs, secondsUntilOpen }).then(r => r.data.data)
 
 export const getAccessQueueStatus = (queueToken) =>
   api.get(`/access-queue/status/${queueToken}`).then(r => r.data.data)

@@ -36,6 +36,6 @@ public class SimulationStartRequest {
     @Schema(description = "남은 예약 좌석 수 (기본값: 강좌 기본 정원)", example = "5")
     private Integer remainingSeats;
 
-    @Schema(description = "유량제어 대기열 토큰 (선택 — 없으면 게이트 없이 즉시 시작)", example = "uuid-...")
+    @Schema(description = "유량제어 대기열 토큰 (선택 — 없으면 대기열 없이 즉시 시작)", example = "uuid-...")
     private String queueToken;
 }

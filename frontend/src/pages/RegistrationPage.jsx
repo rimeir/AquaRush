@@ -47,7 +47,8 @@ export default function RegistrationPage() {
   const [currentSimId, setCurrentSimId] = useState(savedSimId)
   const [missionMeta, setMissionMeta] = useState(loadMeta())
 
-  const [accessGranted, setAccessGranted] = useState(false)
+  // 이미 시뮬레이션이 시작된 세션이면 queue 없이 입장 허가
+  const [accessGranted, setAccessGranted] = useState(!!savedSimId)
   const [queueToken, setQueueToken] = useState(null)
   const [queuePosition, setQueuePosition] = useState(0)
   const [initialQueuePosition, setInitialQueuePosition] = useState(0)
@@ -76,11 +77,13 @@ export default function RegistrationPage() {
   const autoStartedRef = useRef(!!savedSimId)
 
   // 페이지 진입마다 새 대기열 생성 (새로고침 = 맨 뒤로)
+  // 단, 기존 시뮬레이션 세션이 있으면 대기열 스킵
   useEffect(() => {
     if (queueEnteredRef.current) return
     queueEnteredRef.current = true
+    if (savedSimId) return // 이미 입장 완료
 
-    enterAccessQueue(botCount, virtualMs)
+    enterAccessQueue(botCount, virtualMs, secondsUntilOpen)
       .then(data => {
         setQueueToken(data.queueToken)
         setQueuePosition(data.position)
@@ -107,6 +110,10 @@ export default function RegistrationPage() {
         } else {
           setQueuePosition(status.position)
           setEstimatedWaitSeconds(status.estimatedWaitSeconds)
+          // initialPosition은 봇이 쏟아지면서 계속 올라감 → 최대값 유지
+          if (status.initialPosition) {
+            setInitialQueuePosition(prev => Math.max(prev, status.initialPosition))
+          }
           if (status.totalBots != null) {
             setTotalBots(status.totalBots)
             setBotsInQueue(status.botsInQueue)
@@ -150,7 +157,8 @@ export default function RegistrationPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCenterId, selectedCategoryId, selectedLevel, selectedTarget, courseRefreshTrigger])
 
-  const shouldStart = isOpen && accessGranted
+  // 9시 되면 즉시 시뮬레이션 시작 (accessGranted 대기 불필요 — 봇이 대기열을 처리함)
+  const shouldStart = isOpen
 
   useEffect(() => {
     if (!shouldStart) return
@@ -201,6 +209,7 @@ export default function RegistrationPage() {
     return Math.max(0, Math.floor((Date.now() - openRealTime) / 1000))
   }
 
+  // 대기열 오버레이: 9시 전/후 모두 표시 (9시 전엔 카운트다운 포함)
   const showAccessQueue = queueToken != null && !accessGranted
   const canInteract = isOpen && accessGranted && !starting && !!currentSimId
 
@@ -270,9 +279,9 @@ export default function RegistrationPage() {
           position={queuePosition}
           initialPosition={initialQueuePosition}
           estimatedWaitSeconds={estimatedWaitSeconds}
-          totalBots={totalBots}
           botsInQueue={botsInQueue}
-          botsAdmitted={botsAdmitted}
+          isOpen={isOpen}
+          secondsUntilOpen={secondsUntilOpen}
         />
       )}
 

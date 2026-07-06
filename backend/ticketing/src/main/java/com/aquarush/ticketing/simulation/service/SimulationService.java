@@ -115,16 +115,16 @@ public class SimulationService {
      * 봇 시뮬레이션 비동기 시작 (봇 정리 로직 포함)
      */
     @Async
-    public void startBotSimulation(String simulationId, Long courseId, List<VirtualUser> bots) {
-        log.info("🚀 봇 시뮬레이션 비동기 시작: simulationId={}, botCount={}",
-                simulationId, bots.size());
+    public void startBotSimulation(String simulationId, Long courseId, List<VirtualUser> bots,
+                                   String queueToken) {
+        log.info("🚀 봇 시뮬레이션 비동기 시작: simulationId={}, botCount={}, queueToken={}",
+                simulationId, bots.size(), queueToken);
 
         String key = "simulation:" + simulationId;
 
         try {
-            // 봇 시뮬레이션 실행
             BotService.BotSimulationResult result =
-                    botService.startBotSimulation(simulationId, courseId, bots);
+                    botService.startBotSimulation(simulationId, courseId, bots, queueToken);
 
             // 결과 저장
             redisTemplate.opsForHash().put(key, "successCount",

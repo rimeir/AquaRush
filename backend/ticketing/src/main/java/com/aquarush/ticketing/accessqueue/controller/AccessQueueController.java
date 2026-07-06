@@ -31,7 +31,8 @@ public class AccessQueueController {
         log.info("POST /api/v1/access-queue/enter - botCount={}", request.getBotCount());
         AccessQueueEnterResponse response = accessQueueService.enterQueue(
                 request.getBotCount(),
-                request.getArrivalVirtualMs()
+                request.getArrivalVirtualMs(),
+                request.getSecondsUntilOpen()
         );
         return ResponseEntity.ok(ApiResponse.success(response, "대기열에 진입했습니다."));
     }

@@ -7,11 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import org.springframework.data.redis.core.ZSetOperations.TypedTuple;
-
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Service
@@ -22,77 +21,120 @@ public class AccessQueueService {
 
     private static final String QUEUE_KEY_PREFIX = "access:queue:";
     private static final String META_KEY_PREFIX  = "access:meta:";
-    // Sorted Set 내 실제 유저를 나타내는 고정 멤버명
-    private static final String USER_MEMBER = "user";
+    private static final String USER_MEMBER      = "user";
 
     /**
-     * 접속 대기열 초기화 + 유저 진입
+     * 유저 대기열 진입
      *
-     * Redis Sorted Set에 가상 접속자(v:N)를 사전에 채우고,
-     * 실제 유저("user")를 arrivalVirtualMs 스코어로 삽입한다.
+     * secondsUntilOpen 기반으로 사전 봇 수 결정:
+     * - 9시까지 30초 이상: 봇 10% 미리 진입 (소수만 먼저 접속한 상태)
+     * - 9시까지 10초: 봇 70% 미리 진입 (막바지에 몰린 상태)
+     * - 9시 이후: 봇 80% 미리 진입
      *
-     * 가상 접속자 분포:
-     *   - 80% : openVirtualMs 기준 T-120s ~ T-0s 구간에 균등 분포 (미리 접속한 인원)
-     *   - 20% : T-0s ~ T+10s 구간에 집중 (정각 surge)
-     *
-     * 입장 처리율(admissionRate): 전체 가상 접속자를 약 12초에 소화
-     * 실제 오픈 시각(realOpenTime): now + (openVirtualMs - arrivalVirtualMs)
+     * 나머지 봇은 BotService가 9시에 staggered로 추가 (내 뒤에 N명 동적 증가)
      */
-    public AccessQueueEnterResponse enterQueue(int botCount, long arrivalVirtualMs) {
-        String queueKey = QUEUE_KEY_PREFIX + java.util.UUID.randomUUID();
-        // queueToken = queueKey 에서 prefix 제거
-        String queueToken = queueKey.replace(QUEUE_KEY_PREFIX, "");
-        String metaKey   = META_KEY_PREFIX + queueToken;
+    public AccessQueueEnterResponse enterQueue(int botCount, long arrivalVirtualMs, int secondsUntilOpen) {
+        String queueToken = UUID.randomUUID().toString();
+        String queueKey   = QUEUE_KEY_PREFIX + queueToken;
+        String metaKey    = META_KEY_PREFIX + queueToken;
 
-        int totalVirtual = botCount;
-        int earlyCount   = (int) (totalVirtual * 0.8);
-        Random rnd = new Random();
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
 
-        // 가상 유저 전체를 Set<TypedTuple>로 모아 한 번의 ZADD로 전송 (N+1 문제 방지)
-        Set<TypedTuple<Object>> tuples = new HashSet<>(totalVirtual);
-        for (int i = 0; i < earlyCount; i++) {
-            long offset = -(long) (rnd.nextDouble() * 120_000);
-            tuples.add(new org.springframework.data.redis.core.DefaultTypedTuple<>("v:" + i, (double) (arrivalVirtualMs + offset)));
-        }
-        for (int i = earlyCount; i < totalVirtual; i++) {
-            long offset = (long) (rnd.nextDouble() * 30_000);
-            tuples.add(new org.springframework.data.redis.core.DefaultTypedTuple<>("v:" + i, (double) (arrivalVirtualMs + offset)));
-        }
-        redisTemplate.opsForZSet().add(queueKey, tuples);
+        // secondsUntilOpen: 가상 시계 기준 0~60 가상초
+        // 60초 남음(페이지 로드) → 봇 10%, 0초(9시 직전) → 봇 80%
+        double prePopRatio = Math.max(0.10, Math.min(0.80,
+                (60.0 - Math.max(0, secondsUntilOpen)) / 60.0 * 0.80));
+        int earlyBotCount = Math.max(5, (int)(botCount * prePopRatio));
 
-        // 실제 유저 삽입 (이미 있으면 갱신 안 함)
-        Long existingRank = redisTemplate.opsForZSet().rank(queueKey, USER_MEMBER);
-        if (existingRank == null) {
-            redisTemplate.opsForZSet().add(queueKey, USER_MEMBER, (double) arrivalVirtualMs);
+        // 조기 봇 진입: 80%는 유저보다 앞, 20%는 유저보다 뒤
+        int aheadCount  = (int)(earlyBotCount * 0.80);
+        int behindCount = earlyBotCount - aheadCount;
+
+        for (int i = 0; i < aheadCount; i++) {
+            long offset = (long)(rnd.nextDouble() * 120_000);
+            redisTemplate.opsForZSet().add(queueKey, "bot:" + i,
+                    (double)(arrivalVirtualMs - offset));
         }
 
+        // 유저 진입
+        redisTemplate.opsForZSet().add(queueKey, USER_MEMBER, (double)arrivalVirtualMs);
+
+        for (int i = aheadCount; i < earlyBotCount; i++) {
+            long offset = (long)(rnd.nextDouble() * 30_000);
+            redisTemplate.opsForZSet().add(queueKey, "bot:" + i,
+                    (double)(arrivalVirtualMs + offset));
+        }
+
+        // 유저 순번 (조기 봇 수 + 1)
         Long rank = redisTemplate.opsForZSet().rank(queueKey, USER_MEMBER);
-        long initialPosition = rank != null ? rank + 1 : 1;
+        long position = rank != null ? rank + 1 : earlyBotCount + 1;
 
-        // 초당 처리율: 전체를 약 12초에 소화 (최소 5명/s)
-        int admissionRate = Math.max(5, totalVirtual / 12);
+        int admissionRate = Math.max(5, botCount / 12);
+        int estimatedWait = (int)Math.ceil((double)(botCount + 1) / admissionRate);
 
-        redisTemplate.opsForHash().put(metaKey, "admissionRate",   String.valueOf(admissionRate));
-        redisTemplate.opsForHash().put(metaKey, "initialPosition", String.valueOf(initialPosition));
-        redisTemplate.opsForHash().put(metaKey, "totalBots",       String.valueOf(totalVirtual));
+        redisTemplate.opsForHash().put(metaKey, "admissionRate",    String.valueOf(admissionRate));
+        redisTemplate.opsForHash().put(metaKey, "totalBots",        String.valueOf(botCount));
+        redisTemplate.opsForHash().put(metaKey, "earlyBotCount",    String.valueOf(earlyBotCount));
+        redisTemplate.opsForHash().put(metaKey, "botsAdmitted",     "0");
+        redisTemplate.opsForHash().put(metaKey, "processingEnabled","false");
+        redisTemplate.opsForHash().put(metaKey, "userVirtualMs",    String.valueOf(arrivalVirtualMs));
+        redisTemplate.opsForHash().put(metaKey, "initialPosition",  String.valueOf(position));
 
-        int estimatedWait = (int) Math.ceil((double) initialPosition / admissionRate);
-
-        log.info("접속 대기열 진입: token={}, virtualUsers={}, position={}", queueToken, totalVirtual, initialPosition);
+        log.info("접속 대기열 생성: token={}, secondsUntilOpen={}s, earlyBotCount={}/{}, 유저순번={}",
+                queueToken, secondsUntilOpen, earlyBotCount, botCount, position);
 
         return AccessQueueEnterResponse.builder()
                 .queueToken(queueToken)
-                .position(initialPosition)
-                .initialPosition(initialPosition)
+                .position(position)
+                .initialPosition(position)
                 .estimatedWaitSeconds(estimatedWait)
                 .build();
     }
 
+    /** 대기열 처리 활성화 — 9시(시뮬레이션 시작)에 BotService가 호출 */
+    public void enableProcessing(String queueToken) {
+        redisTemplate.opsForHash().put(META_KEY_PREFIX + queueToken, "processingEnabled", "true");
+        log.info("대기열 처리 활성화: token={}", queueToken);
+    }
+
+    /** 유저 도착 가상 시각 조회 — 봇 offset 기준점 */
+    public long getUserVirtualMs(String queueToken) {
+        Object obj = redisTemplate.opsForHash().get(META_KEY_PREFIX + queueToken, "userVirtualMs");
+        return obj != null ? Long.parseLong(obj.toString()) : System.currentTimeMillis();
+    }
+
+    /** 미리 진입한 봇 수 조회 — BotService에서 나머지 봇 처리 시 사용 */
+    public int getEarlyBotCount(String queueToken) {
+        Object obj = redisTemplate.opsForHash().get(META_KEY_PREFIX + queueToken, "earlyBotCount");
+        return obj != null ? Integer.parseInt(obj.toString()) : 0;
+    }
+
     /**
-     * 대기열 상태 조회
+     * 봇 스레드가 대기열에 진입 (9시 이후 나머지 봇들)
      *
-     * "user" 멤버가 Sorted Set에 없으면 이미 입장 처리된 것으로 간주한다.
+     * 음수 offset 봇: 유저보다 앞 → 유저 순번을 밀어올림
+     * 양수 offset 봇: 유저보다 뒤 → "내 뒤에 N명" 증가
      */
+    public void enterBotQueue(String queueToken, int botIdx, long arrivalMs) {
+        String queueKey = QUEUE_KEY_PREFIX + queueToken;
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(queueKey))) return;
+        redisTemplate.opsForZSet().add(queueKey, "bot:" + botIdx, (double)arrivalMs);
+
+        Long rank = redisTemplate.opsForZSet().rank(queueKey, USER_MEMBER);
+        if (rank != null) {
+            redisTemplate.opsForHash().put(META_KEY_PREFIX + queueToken,
+                    "initialPosition", String.valueOf(rank + 1));
+        }
+    }
+
+    /** 봇 슬롯이 대기열에 남아있는지 확인 (봇 스레드 폴링용) */
+    public boolean isBotInQueue(String queueToken, int botIdx) {
+        String queueKey = QUEUE_KEY_PREFIX + queueToken;
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(queueKey))) return false;
+        return redisTemplate.opsForZSet().rank(queueKey, "bot:" + botIdx) != null;
+    }
+
+    /** 대기열 상태 조회 */
     public AccessQueueStatusResponse getStatus(String queueToken) {
         String queueKey = QUEUE_KEY_PREFIX + queueToken;
         String metaKey  = META_KEY_PREFIX + queueToken;
@@ -102,10 +144,7 @@ public class AccessQueueService {
         }
 
         Long rank = redisTemplate.opsForZSet().rank(queueKey, USER_MEMBER);
-        if (rank == null) {
-            // 큐에서 제거됨 = 입장 허가
-            return AccessQueueStatusResponse.granted();
-        }
+        if (rank == null) return AccessQueueStatusResponse.granted();
 
         long position = rank + 1;
 
@@ -114,14 +153,16 @@ public class AccessQueueService {
 
         Object rateObj = redisTemplate.opsForHash().get(metaKey, "admissionRate");
         int rate = rateObj != null ? Integer.parseInt(rateObj.toString()) : 5;
-        int estimatedWait = (int) Math.ceil((double) position / rate);
+        int estimatedWait = (int)Math.ceil((double)position / rate);
 
         Object totalBotsObj = redisTemplate.opsForHash().get(metaKey, "totalBots");
         long totalBots = totalBotsObj != null ? Long.parseLong(totalBotsObj.toString()) : 0;
+
         Long queueSize = redisTemplate.opsForZSet().size(queueKey);
-        long currentSize = queueSize != null ? queueSize : 0;
-        long botsInQueue = Math.max(0, currentSize - 1); // 유저 1명 제외
-        long botsAdmitted = Math.max(0, totalBots - botsInQueue);
+        long botsInQueue = Math.max(0, (queueSize != null ? queueSize : 0) - 1);
+
+        Object admittedObj = redisTemplate.opsForHash().get(metaKey, "botsAdmitted");
+        long botsAdmitted = admittedObj != null ? Long.parseLong(admittedObj.toString()) : 0;
 
         return AccessQueueStatusResponse.builder()
                 .isGranted(false)
@@ -135,87 +176,51 @@ public class AccessQueueService {
     }
 
     /**
-     * 입장 처리 (스케줄러에서 1초마다 호출)
-     *
-     * Sorted Set 앞에서부터 admissionRate개 제거 → 유저("user")가 포함되면 자동으로 입장 처리.
-     * @return 이번 호출에서 입장 처리된 봇 수 (user 제외)
+     * 입장 처리 (스케줄러 1초마다)
+     * processingEnabled=false 이면 skip (9시 전에는 처리 안 함)
      */
-    public int processAdmissions(String queueToken) {
-        String metaKey = META_KEY_PREFIX + queueToken;
+    public void processAdmissions(String queueToken) {
+        String metaKey  = META_KEY_PREFIX + queueToken;
+        String queueKey = QUEUE_KEY_PREFIX + queueToken;
+
+        Object enabledObj = redisTemplate.opsForHash().get(metaKey, "processingEnabled");
+        if (!"true".equals(enabledObj != null ? enabledObj.toString() : "false")) return;
 
         Object rateObj = redisTemplate.opsForHash().get(metaKey, "admissionRate");
         int rate = rateObj != null ? Integer.parseInt(rateObj.toString()) : 5;
 
-        String queueKey = QUEUE_KEY_PREFIX + queueToken;
         Long size = redisTemplate.opsForZSet().size(queueKey);
         if (size == null || size == 0) {
             redisTemplate.delete(metaKey);
-            return 0;
+            return;
         }
 
-        // 제거 대상 멤버를 조회해 봇 수 계산 (user 제외)
         Set<Object> toRemove = redisTemplate.opsForZSet().range(queueKey, 0, rate - 1);
-        if (toRemove == null || toRemove.isEmpty()) return 0;
+        if (toRemove == null || toRemove.isEmpty()) return;
 
         long botCount = toRemove.stream()
                 .filter(m -> !USER_MEMBER.equals(m.toString()))
                 .count();
 
         redisTemplate.opsForZSet().removeRange(queueKey, 0, rate - 1);
-        return (int) botCount;
+
+        if (botCount > 0) {
+            Object admittedObj = redisTemplate.opsForHash().get(metaKey, "botsAdmitted");
+            long current = admittedObj != null ? Long.parseLong(admittedObj.toString()) : 0;
+            redisTemplate.opsForHash().put(metaKey, "botsAdmitted", String.valueOf(current + botCount));
+        }
     }
 
-    /**
-     * 대기열과 시뮬레이션을 연결 — 입장 처리된 봇을 해당 시뮬레이션 봇 게이트로 전달하기 위함
-     */
-    public void linkSimulation(String queueToken, String simulationId) {
-        redisTemplate.opsForHash().put(META_KEY_PREFIX + queueToken, "simulationId", simulationId);
-        log.info("대기열-시뮬레이션 연결: token={}, simulationId={}", queueToken, simulationId);
-    }
-
-    /**
-     * 연결된 simulationId 조회 (스케줄러에서 admitBots 호출에 사용)
-     */
-    public String getLinkedSimulationId(String queueToken) {
-        Object obj = redisTemplate.opsForHash().get(META_KEY_PREFIX + queueToken, "simulationId");
-        return obj != null ? obj.toString() : null;
-    }
-
-    /**
-     * 시뮬레이션 시작 시점까지 이미 입장 처리된 봇 수 반환
-     */
-    public int getAdmittedBotCount(String queueToken) {
-        String metaKey = META_KEY_PREFIX + queueToken;
-        Object totalBotsObj = redisTemplate.opsForHash().get(metaKey, "totalBots");
-        if (totalBotsObj == null) return 0;
-        long totalBots = Long.parseLong(totalBotsObj.toString());
-
-        String queueKey = QUEUE_KEY_PREFIX + queueToken;
-        Long queueSize = redisTemplate.opsForZSet().size(queueKey);
-        long currentSize = queueSize != null ? queueSize : 0;
-        long botsInQueue = Math.max(0, currentSize - 1); // user 멤버 제외
-        return (int) Math.max(0, totalBots - botsInQueue);
-    }
-
-    /**
-     * 시뮬레이션 종료 또는 테스트용 정리
-     */
     public void clearQueue(String queueToken) {
         redisTemplate.delete(QUEUE_KEY_PREFIX + queueToken);
         redisTemplate.delete(META_KEY_PREFIX + queueToken);
-        log.info("접속 대기열 정리: token={}", queueToken);
     }
 
-    /**
-     * 모든 활성 대기열 토큰 조회 (스케줄러용)
-     */
     public Set<String> getActiveQueueTokens() {
         Set<String> keys = redisTemplate.keys(QUEUE_KEY_PREFIX + "*");
         if (keys == null) return Set.of();
-        Set<String> tokens = new java.util.HashSet<>();
-        for (String key : keys) {
-            tokens.add(key.replace(QUEUE_KEY_PREFIX, ""));
-        }
+        Set<String> tokens = new HashSet<>();
+        for (String key : keys) tokens.add(key.replace(QUEUE_KEY_PREFIX, ""));
         return tokens;
     }
 }

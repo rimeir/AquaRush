@@ -1,6 +1,5 @@
 package com.aquarush.ticketing.simulation.controller;
 
-import com.aquarush.ticketing.accessqueue.service.AccessQueueService;
 import com.aquarush.ticketing.global.dto.ApiResponse;
 import com.aquarush.ticketing.simulation.dto.SimulationStartRequest;
 import com.aquarush.ticketing.simulation.dto.SimulationStatusResponse;
@@ -31,7 +30,6 @@ public class SimulationController {
     private final SimulationService simulationService;
     private final VirtualUserService virtualUserService;
     private final BotService botService;
-    private final AccessQueueService accessQueueService;
 
     /**
      * 시뮬레이션 시작
@@ -61,18 +59,8 @@ public class SimulationController {
                 request.getCourseId(), user, bots,
                 request.getTotalSeats(), request.getRemainingSeats());
 
-        // 4. 유량제어 대기열과 봇 게이트 연결
-        String queueToken = request.getQueueToken();
-        if (queueToken != null && !queueToken.isBlank()) {
-            int alreadyAdmitted = accessQueueService.getAdmittedBotCount(queueToken);
-            botService.initBotGate(simulationId, alreadyAdmitted);
-            accessQueueService.linkSimulation(queueToken, simulationId);
-            log.info("봇 게이트 연결: simulationId={}, queueToken={}, alreadyAdmitted={}",
-                    simulationId, queueToken, alreadyAdmitted);
-        }
-
-        // 5. 비동기로 봇만 예약 경쟁 시작 (유저는 결제 시점에 직접 예약)
-        simulationService.startBotSimulation(simulationId, request.getCourseId(), bots);
+        // 4. 비동기로 봇 시뮬레이션 시작 (True Method B: 각 봇이 자신의 bot:N 슬롯 직접 감시)
+        simulationService.startBotSimulation(simulationId, request.getCourseId(), bots, request.getQueueToken());
 
         // 5. 현황 조회
         SimulationStatusResponse status = simulationService.getStatus(simulationId);
